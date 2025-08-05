@@ -13,7 +13,7 @@ passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
 
 # Trading & Data
-MetaTrader5==5.0.45  # Solo en Windows
+MetaTrader5==5.0.5120
 pandas==2.3.1        # Usando tu versión actual
 numpy==2.3.1         # Usando tu versión actual
 ta==0.11.0           # Usando tu versión actual
