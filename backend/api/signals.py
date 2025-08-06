@@ -4,12 +4,15 @@ import asyncio
 import json
 from datetime import datetime, timedelta
 import logging
-
+import numpy as np
+from datetime import datetime
+import pandas as pd
 from database.models import User, Signal
 from database.connection import get_database
 from mt5.data_provider import MT5DataProvider
 from ai.confluence_detector import ConfluenceDetector
 from api.auth import get_current_user
+from database.models import SignalType
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -164,6 +167,31 @@ async def get_signals(
         logger.error(f"Error obteniendo señales: {e}")
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
+def prepare_for_json(data):
+    """
+    Prepara datos para serialización JSON convirtiendo tipos especiales.
+    Versión mejorada para manejar Timestamps de pandas y otros tipos complejos.
+    """
+    if isinstance(data, (list, tuple)):
+        return [prepare_for_json(item) for item in data]
+    elif isinstance(data, dict):
+        return {key: prepare_for_json(value) for key, value in data.items()}
+    elif hasattr(data, '__dict__'):  # Para objetos
+        return prepare_for_json(data.__dict__)
+    elif isinstance(data, (np.float32, np.float64)):
+        return float(data)
+    elif isinstance(data, (np.int32, np.int64)):
+        return int(data)
+    elif isinstance(data, (datetime, pd.Timestamp)):
+        return data.isoformat()
+    elif str(type(data)) == "<class 'bson.objectid.ObjectId'>":
+        return str(data)
+    elif isinstance(data, pd.Timestamp):  # Caso específico para Timestamp
+        return data.to_pydatetime().isoformat()
+    elif data is None:
+        return None
+    return data
+
 @router.post("/signals/analyze/{pair}")
 async def analyze_pair(
     pair: str,
@@ -171,65 +199,76 @@ async def analyze_pair(
     current_user: User = Depends(get_current_user),
     db = Depends(get_database)
 ):
-    """Analiza un par específico y genera señales"""
     try:
-        # Verificar que MT5 esté conectado
         if not mt5_provider.connect():
             raise HTTPException(status_code=503, detail="Error conectando con MT5")
-        
-        # Obtener datos del par
+
         data = mt5_provider.get_realtime_data(pair, timeframe, 500)
         if data is None or data.empty:
             raise HTTPException(status_code=404, detail=f"No se pudieron obtener datos para {pair}")
+
+        signal = await confluence_detector.analyze_symbol(pair, data, timeframe)
         
-        # Generar señales con IA
-        signals = confluence_detector.detect_confluence_signals(data, timeframe)
-        
-        # Guardar señales en la base de datos
         saved_signals = []
         collection = db.trading_signals
-        
-        for signal in signals:
-            signal_doc = {
-                "user_id": current_user.id,
-                "pair": pair,
-                "timeframe": timeframe,
-                "signal_type": signal.signal_type,
-                "direction": signal.direction,
-                "confidence": signal.confidence,
+
+        if signal:
+            # Convertir señal a diccionario
+            signal_dict = {
+                "symbol": signal.symbol,
+                "timeframe": signal.timeframe,
+                "signal_type": signal.signal_type.value,
                 "entry_price": signal.entry_price,
                 "stop_loss": signal.stop_loss,
                 "take_profit": signal.take_profit,
-                "confluences": [conf.to_dict() for conf in signal.confluences],
+                "confluence_score": signal.confluence_score,
+                "technical_analyses": [
+                    {
+                        "type": analysis.type.value,
+                        "confidence": analysis.confidence,
+                        "data": prepare_for_json(analysis.data),
+                        "description": analysis.description
+                    }
+                    for analysis in signal.technical_analyses
+                ] if signal.technical_analyses else []
+            }
+
+            # Documento para MongoDB
+            signal_doc = {
+                "user_id": current_user.id,
+                **signal_dict,
                 "timestamp": datetime.utcnow(),
                 "status": "ACTIVE"
             }
-            
+
+            # Insertar en MongoDB
             result = await collection.insert_one(signal_doc)
             signal_doc["_id"] = str(result.inserted_id)
-            saved_signals.append(signal_doc)
-        
-        # Enviar actualización via WebSocket
-        await manager.send_personal_message(
-            json.dumps({
-                "type": "new_signals",
-                "pair": pair,
-                "signals": saved_signals
-            }),
-            current_user.id
-        )
-        
+            
+            # Preparar para WebSocket
+            ws_data = prepare_for_json(signal_doc)
+            saved_signals.append(ws_data)
+
+            # Enviar notificación WebSocket
+            await manager.send_personal_message(
+                json.dumps({
+                    "type": "new_signals",
+                    "pair": pair,
+                    "signals": saved_signals
+                }),
+                current_user.id
+            )
+
         return {
             "pair": pair,
             "timeframe": timeframe,
             "signals": saved_signals,
             "analysis_time": datetime.utcnow().isoformat()
         }
-        
-    except Exception as e:
-        logger.error(f"Error analizando par {pair}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
+    except Exception as e:
+        logger.error(f"Error analizando par {pair}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 @router.get("/signals/pairs/")
 async def get_available_pairs(current_user: User = Depends(get_current_user)):
     """Obtiene los pares disponibles en MT5"""

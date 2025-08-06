@@ -56,7 +56,7 @@ class ConfluenceDetector:
                 return None
             
             # Detectar confluencias
-            confluences = await self._detect_confluences(analyses, df)
+            confluences = await self.detect_confluence_signals(analyses, df)
             
             if not confluences:
                 self.logger.info(f"No se detectaron confluencias para {symbol}")
@@ -92,37 +92,60 @@ class ConfluenceDetector:
             # Análisis de ondas de Elliott
             elliott_result = await self.elliott_analyzer.analyze(df)
             if elliott_result:
+                # ✅ CORRECCIÓN: Asegurar que description no sea None
+                description = elliott_result.get('description', 'Análisis Elliott Wave')
+                if description is None:
+                    description = 'Análisis Elliott Wave'
+                    
                 analyses.append(TechnicalAnalysis(
                     type=AnalysisType.ELLIOTT_WAVE,
-                    confidence=elliott_result['confidence'],
+                    confidence=elliott_result.get('confidence', 0.5),
                     data=elliott_result,
-                    description=elliott_result['description']
+                    description=description
                 ))
         except Exception as e:
             self.logger.warning(f"Error en análisis Elliott Wave: {e}")
         
         try:
-            # Análisis de patrones chartistas
-            pattern_results = await self.pattern_detector.detect_patterns(df)
+            # ✅ CORRECCIÓN: Pasar timeframe a detect_patterns
+            pattern_results = await self.pattern_detector.detect_patterns(df, timeframe)
             for pattern in pattern_results:
+                # ✅ CORRECCIÓN: Asegurar que description no sea None
+                description = pattern.get('description', 'Patrón chartista detectado')
+                if description is None:
+                    description = 'Patrón chartista detectado'
+                    
                 analyses.append(TechnicalAnalysis(
                     type=AnalysisType.CHART_PATTERN,
-                    confidence=pattern['confidence'],
+                    confidence=pattern.get('confidence', 0.5),
                     data=pattern,
-                    description=pattern['description']
+                    description=description
                 ))
         except Exception as e:
             self.logger.warning(f"Error en análisis de patrones: {e}")
         
         try:
-            # Análisis de Fibonacci
-            fib_result = await self.fibonacci_analyzer.analyze(df)
+            # ✅ CORRECCIÓN: Usar el método correcto de FibonacciAnalyzer
+            # Verificar si tiene método analyze, si no, usar otro método disponible
+            if hasattr(self.fibonacci_analyzer, 'analyze'):
+                fib_result = await self.fibonacci_analyzer.analyze(df)
+            elif hasattr(self.fibonacci_analyzer, 'calculate_levels'):
+                fib_result = await self.fibonacci_analyzer.calculate_levels(df)
+            else:
+                # Crear un análisis básico de Fibonacci
+                fib_result = await self._basic_fibonacci_analysis(df)
+                
             if fib_result:
+                # ✅ CORRECCIÓN: Asegurar que description no sea None
+                description = fib_result.get('description', 'Análisis Fibonacci')
+                if description is None:
+                    description = 'Análisis Fibonacci'
+                    
                 analyses.append(TechnicalAnalysis(
                     type=AnalysisType.FIBONACCI,
-                    confidence=fib_result['confidence'],
+                    confidence=fib_result.get('confidence', 0.5),
                     data=fib_result,
-                    description=fib_result['description']
+                    description=description
                 ))
         except Exception as e:
             self.logger.warning(f"Error en análisis Fibonacci: {e}")
@@ -142,7 +165,43 @@ class ConfluenceDetector:
         
         return analyses
     
-    async def _detect_confluences(self, 
+    async def _basic_fibonacci_analysis(self, df: pd.DataFrame) -> Optional[Dict]:
+        """Análisis básico de Fibonacci como fallback"""
+        try:
+            # Encontrar swing high y swing low recientes
+            recent_data = df.tail(100)  # Últimas 100 velas
+            
+            swing_high = recent_data['High'].max()
+            swing_low = recent_data['Low'].min()
+            
+            # Calcular niveles de Fibonacci
+            diff = swing_high - swing_low
+            levels = []
+            
+            fib_ratios = [0.236, 0.382, 0.5, 0.618, 0.786]
+            
+            for ratio in fib_ratios:
+                # Retroceso desde el high
+                retracement_level = swing_high - (diff * ratio)
+                levels.append({
+                    'price': retracement_level,
+                    'ratio': ratio,
+                    'strength': 0.7 if ratio in [0.382, 0.618] else 0.5  # Niveles más importantes
+                })
+            
+            return {
+                'levels': levels,
+                'swing_high': swing_high,
+                'swing_low': swing_low,
+                'confidence': 0.6,
+                'description': f'Niveles Fibonacci entre {swing_low:.5f} y {swing_high:.5f}'
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error en análisis básico Fibonacci: {e}")
+            return None
+    
+    async def detect_confluence_signals(self, 
                                 analyses: List[TechnicalAnalysis], 
                                 df: pd.DataFrame) -> List[ConfluencePoint]:
         """Detectar puntos de confluencia entre análisis"""
@@ -182,49 +241,57 @@ class ConfluenceDetector:
         """Extraer niveles de precio importantes de un análisis"""
         levels = []
         
-        if analysis.type == AnalysisType.ELLIOTT_WAVE:
-            # Extraer objetivos de ondas de Elliott
-            if 'targets' in analysis.data:
-                for target in analysis.data['targets']:
+        try:
+            if analysis.type == AnalysisType.ELLIOTT_WAVE:
+                # Extraer objetivos de ondas de Elliott
+                if isinstance(analysis.data, dict) and 'targets' in analysis.data:
+                    for target in analysis.data['targets']:
+                        if isinstance(target, dict) and 'price' in target:
+                            levels.append({
+                                'price': target['price'],
+                                'type': f"elliott_{target.get('type', 'unknown')}",
+                                'confidence': analysis.confidence,
+                                'analysis': 'Elliott Wave'
+                            })
+            
+            elif analysis.type == AnalysisType.CHART_PATTERN:
+                # Extraer objetivos de patrones
+                if isinstance(analysis.data, dict) and 'target' in analysis.data:
                     levels.append({
-                        'price': target['price'],
-                        'type': f"elliott_{target['type']}",
+                        'price': analysis.data['target'],
+                        'type': f"pattern_{analysis.data.get('pattern_type', 'unknown')}",
                         'confidence': analysis.confidence,
-                        'analysis': 'Elliott Wave'
+                        'analysis': 'Chart Pattern'
                     })
-        
-        elif analysis.type == AnalysisType.CHART_PATTERN:
-            # Extraer objetivos de patrones
-            if 'target' in analysis.data:
-                levels.append({
-                    'price': analysis.data['target'],
-                    'type': f"pattern_{analysis.data['pattern_type']}",
-                    'confidence': analysis.confidence,
-                    'analysis': 'Chart Pattern'
-                })
-        
-        elif analysis.type == AnalysisType.FIBONACCI:
-            # Extraer niveles de Fibonacci
-            if 'levels' in analysis.data:
-                for level in analysis.data['levels']:
-                    if abs(level['price'] - current_price) / current_price < 0.05:  # Dentro del 5%
-                        levels.append({
-                            'price': level['price'],
-                            'type': f"fib_{level['ratio']}",
-                            'confidence': analysis.confidence * level['strength'],
-                            'analysis': 'Fibonacci'
-                        })
-        
-        elif analysis.type == AnalysisType.SUPPORT_RESISTANCE:
-            # Extraer niveles de S/R
-            if 'levels' in analysis.data:
-                for level in analysis.data['levels']:
-                    levels.append({
-                        'price': level['price'],
-                        'type': f"sr_{level['type']}",
-                        'confidence': analysis.confidence * level['strength'],
-                        'analysis': 'Support/Resistance'
-                    })
+            
+            elif analysis.type == AnalysisType.FIBONACCI:
+                # Extraer niveles de Fibonacci
+                if isinstance(analysis.data, dict) and 'levels' in analysis.data:
+                    for level in analysis.data['levels']:
+                        if isinstance(level, dict) and 'price' in level:
+                            price = level['price']
+                            if abs(price - current_price) / current_price < 0.05:  # Dentro del 5%
+                                levels.append({
+                                    'price': price,
+                                    'type': f"fib_{level.get('ratio', 'unknown')}",
+                                    'confidence': analysis.confidence * level.get('strength', 0.5),
+                                    'analysis': 'Fibonacci'
+                                })
+            
+            elif analysis.type == AnalysisType.SUPPORT_RESISTANCE:
+                # Extraer niveles de S/R
+                if isinstance(analysis.data, dict) and 'levels' in analysis.data:
+                    for level in analysis.data['levels']:
+                        if isinstance(level, dict) and 'price' in level:
+                            levels.append({
+                                'price': level['price'],
+                                'type': f"sr_{level.get('type', 'unknown')}",
+                                'confidence': analysis.confidence * level.get('strength', 0.5),
+                                'analysis': 'Support/Resistance'
+                            })
+                            
+        except Exception as e:
+            self.logger.warning(f"Error extrayendo niveles de {analysis.type}: {e}")
         
         return levels
     
@@ -446,14 +513,35 @@ class ConfluenceDetector:
     
     def _find_local_extrema(self, series: pd.Series, order: int = 5, mode: str = 'max') -> List[int]:
         """Encontrar extremos locales en una serie"""
-        from scipy.signal import argrelextrema
+        try:
+            from scipy.signal import argrelextrema
+            
+            if mode == 'max':
+                extrema = argrelextrema(series.values, np.greater, order=order)[0]
+            else:
+                extrema = argrelextrema(series.values, np.less, order=order)[0]
+            
+            return extrema.tolist()
+        except ImportError:
+            # Fallback sin scipy
+            return self._find_extrema_simple(series, order, mode)
+    
+    def _find_extrema_simple(self, series: pd.Series, order: int = 5, mode: str = 'max') -> List[int]:
+        """Encontrar extremos locales sin scipy (fallback)"""
+        extrema = []
+        values = series.values
         
-        if mode == 'max':
-            extrema = argrelextrema(series.values, np.greater, order=order)[0]
-        else:
-            extrema = argrelextrema(series.values, np.less, order=order)[0]
+        for i in range(order, len(values) - order):
+            if mode == 'max':
+                if all(values[i] >= values[i-j] for j in range(1, order+1)) and \
+                   all(values[i] >= values[i+j] for j in range(1, order+1)):
+                    extrema.append(i)
+            else:
+                if all(values[i] <= values[i-j] for j in range(1, order+1)) and \
+                   all(values[i] <= values[i+j] for j in range(1, order+1)):
+                    extrema.append(i)
         
-        return extrema.tolist()
+        return extrema
     
     def _calculate_level_strength(self, df: pd.DataFrame, price: float, level_type: str) -> float:
         """Calcular la fuerza de un nivel de S/R"""
@@ -490,6 +578,10 @@ class ConfluenceDetector:
         )
         
         if not touches_mask.any():
+            return 0.0
+        
+        # Si no hay columna Volume, retornar 0
+        if 'Volume' not in df.columns:
             return 0.0
         
         # Volumen promedio en toques vs volumen general
