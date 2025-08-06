@@ -7,7 +7,7 @@ export const loginUser = createAsyncThunk(
   async ({ email, password }, { rejectWithValue }) => {
     try {
       const response = await api.login(email, password)
-      return response.data
+      return response
     } catch (error) {
       return rejectWithValue(error.response.data)
     }
@@ -63,12 +63,13 @@ const authSlice = createSlice({
       .addCase(loginUser.pending, (state) => {
         state.status = 'loading'
       })
-      .addCase(loginUser.fulfilled, (state, action) => {
-        state.status = 'succeeded'
-        state.user = action.payload.user
-        state.token = action.payload.token
-        localStorage.setItem('authToken', action.payload.token)
-      })
+.addCase(loginUser.fulfilled, (state, action) => {
+  state.status = 'succeeded'
+  state.user = null
+  state.token = action.payload.access_token
+  state.isAuthenticated = true  // ✅ Agregar esto
+  localStorage.setItem('authToken', action.payload.access_token)
+})
       .addCase(loginUser.rejected, (state, action) => {
         state.status = 'failed'
         state.error = action.payload.message
@@ -76,11 +77,9 @@ const authSlice = createSlice({
       .addCase(registerUser.pending, (state) => {
         state.status = 'loading'
       })
-      .addCase(registerUser.fulfilled, (state, action) => {
+      .addCase(registerUser.fulfilled, (state) => {
         state.status = 'succeeded'
-        state.user = action.payload.user
-        state.token = action.payload.token
-        localStorage.setItem('authToken', action.payload.token)
+
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.status = 'failed'

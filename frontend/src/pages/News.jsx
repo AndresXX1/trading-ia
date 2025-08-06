@@ -1,10 +1,45 @@
 import React, { useState, useEffect } from 'react'
+import {
+  Box,
+  Container,
+  Typography,
+  TextField,
+  Button,
+  Card,
+  CardMedia,
+  CardContent,
+  Chip,
+  Grid,
+  InputAdornment,
+  Skeleton,
+  Pagination,
+  IconButton,
+  Badge,
+  Tooltip
+} from '@mui/material'
+import {
+  Search,
+  Refresh,
+  TrendingUp,
+  TrendingDown,
+  Remove,
+  Article,
+  ShowChart,
+  CurrencyBitcoin,
+  AccountBalance,
+  LocalAtm,
+  ArrowForward,
+  AccessTime
+} from '@mui/icons-material'
+import './news.css'
 
 const News = () => {
   const [news, setNews] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 6
 
   // Datos de ejemplo - en una app real vendrían de una API
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -78,11 +113,11 @@ const News = () => {
   ]
 
   const categories = [
-    { id: 'all', name: 'Todas', icon: '📰' },
-    { id: 'stocks', name: 'Acciones', icon: '📈' },
-    { id: 'crypto', name: 'Cripto', icon: '₿' },
-    { id: 'economy', name: 'Economía', icon: '🏦' },
-    { id: 'commodities', name: 'Materias Primas', icon: '🥇' }
+    { id: 'all', name: 'Todas', icon: <Article /> },
+    { id: 'stocks', name: 'Acciones', icon: <ShowChart /> },
+    { id: 'crypto', name: 'Cripto', icon: <CurrencyBitcoin /> },
+    { id: 'economy', name: 'Economía', icon: <AccountBalance /> },
+    { id: 'commodities', name: 'Materias Primas', icon: <LocalAtm /> }
   ]
 
   useEffect(() => {
@@ -100,6 +135,13 @@ const News = () => {
     return matchesCategory && matchesSearch
   })
 
+  const paginatedNews = filteredNews.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  const totalPages = Math.ceil(filteredNews.length / itemsPerPage)
+
   const getTimeAgo = (dateString) => {
     const now = new Date()
     const publishedDate = new Date(dateString)
@@ -112,179 +154,228 @@ const News = () => {
     return `Hace ${diffInDays} día${diffInDays > 1 ? 's' : ''}`
   }
 
-  const getImpactColor = (impact) => {
-    switch (impact) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200'
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'low': return 'bg-green-100 text-green-800 border-green-200'
-      default: return 'bg-gray-100 text-gray-800 border-gray-200'
+  const getImpactChip = (impact) => {
+    const configs = {
+      high: { label: 'Alto Impacto', className: 'impact-high' },
+      medium: { label: 'Medio Impacto', className: 'impact-medium' },
+      low: { label: 'Bajo Impacto', className: 'impact-low' }
     }
+    return configs[impact] || configs.low
   }
 
   const getSentimentIcon = (sentiment) => {
     switch (sentiment) {
-      case 'positive': return '📈'
-      case 'negative': return '📉'
-      case 'neutral': return '➖'
-      default: return '❓'
+      case 'positive': return <TrendingUp className="sentiment-positive" />
+      case 'negative': return <TrendingDown className="sentiment-negative" />
+      case 'neutral': return <Remove className="sentiment-neutral" />
+      default: return <Remove className="sentiment-neutral" />
     }
+  }
+
+  const handleRefresh = () => {
+    setLoading(true)
+    setTimeout(() => {
+      setLoading(false)
+    }, 1000)
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">Noticias del Mercado</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <div key={i} className="bg-white rounded-lg shadow-md p-6 animate-pulse">
-              <div className="h-48 bg-gray-200 rounded-lg mb-4"></div>
-              <div className="h-4 bg-gray-200 rounded mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded mb-4 w-3/4"></div>
-              <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <Box className="news-container">
+        <Container maxWidth="xl">
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h4" className="news-title" sx={{ mb: 2 }}>
+              Noticias del Mercado
+            </Typography>
+          </Box>
+          <Grid container spacing={3}>
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <Grid item xs={12} md={6} lg={4} key={i}>
+                <Card className="news-card-skeleton">
+                  <Skeleton variant="rectangular" height={200} />
+                  <CardContent>
+                    <Skeleton variant="text" height={30} />
+                    <Skeleton variant="text" height={20} width="80%" />
+                    <Skeleton variant="text" height={60} />
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+                      <Skeleton variant="rectangular" width={80} height={24} />
+                      <Skeleton variant="rectangular" width={60} height={24} />
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
     )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold text-gray-900">Noticias del Mercado</h2>
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <input
-              type="text"
+    <Box className="news-container">
+      <Container maxWidth="xl">
+        {/* Header */}
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between',
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          gap: 3,
+          mb: 4
+        }}>
+          <Typography variant="h4" className="news-title">
+            Noticias del Mercado
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <TextField
               placeholder="Buscar noticias..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="news-search"
+              size="small"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search className="search-icon" />
+                  </InputAdornment>
+                ),
+              }}
             />
-            <svg className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
-          <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition duration-200 flex items-center">
-            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Actualizar
-          </button>
-        </div>
-      </div>
+            <Button
+              variant="contained"
+              onClick={handleRefresh}
+              className="refresh-button"
+              startIcon={<Refresh />}
+            >
+              Actualizar
+            </Button>
+          </Box>
+        </Box>
 
-      {/* Filtros de categorías */}
-      <div className="flex flex-wrap gap-2">
-        {categories.map(category => (
-          <button
-            key={category.id}
-            onClick={() => setSelectedCategory(category.id)}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition duration-200 ${
-              selectedCategory === category.id
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            <span className="mr-2">{category.icon}</span>
-            {category.name}
-          </button>
-        ))}
-      </div>
-
-      {/* Lista de noticias */}
-      {filteredNews.length === 0 ? (
-        <div className="text-center py-12">
-          <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-          </svg>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron noticias</h3>
-          <p className="text-gray-600">Prueba con diferentes filtros o términos de búsqueda</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredNews.map(article => (
-            <article key={article.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-300">
-              <div className="relative">
-                <img
-                  src={article.image}
-                  alt={article.title}
-                  className="w-full h-48 object-cover"
-                />
-                <div className="absolute top-4 right-4">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getImpactColor(article.impact)}`}>
-                    {article.impact === 'high' ? 'Alto Impacto' : 
-                     article.impact === 'medium' ? 'Medio Impacto' : 'Bajo Impacto'}
-                  </span>
-                </div>
-                <div className="absolute top-4 left-4">
-                  <span className="bg-black bg-opacity-50 text-white px-2 py-1 rounded text-xs">
-                    {getSentimentIcon(article.sentiment)}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm text-blue-600 font-medium">{article.source}</span>
-                  <span className="text-sm text-gray-500">{getTimeAgo(article.publishedAt)}</span>
-                </div>
-                
-                <h3 className="text-lg font-semibold text-gray-900 mb-3 line-clamp-2">
-                  {article.title}
-                </h3>
-                
-                <p className="text-gray-600 text-sm mb-4 line-clamp-3">
-                  {article.summary}
-                </p>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      {categories.find(cat => cat.id === article.category)?.icon}
-                      <span className="ml-1">{categories.find(cat => cat.id === article.category)?.name}</span>
-                    </span>
-                  </div>
-                  
-                  <button className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center">
-                    Leer más
-                    <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </article>
+        {/* Filtros de categorías */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 4 }}>
+          {categories.map(category => (
+            <Chip
+              key={category.id}
+              icon={category.icon}
+              label={category.name}
+              onClick={() => setSelectedCategory(category.id)}
+              className={`category-chip ${selectedCategory === category.id ? 'active' : ''}`}
+              variant={selectedCategory === category.id ? 'filled' : 'outlined'}
+            />
           ))}
-        </div>
-      )}
+        </Box>
 
-      {/* Paginación (placeholder) */}
-      {filteredNews.length > 0 && (
-        <div className="flex justify-center mt-8">
-          <div className="flex items-center space-x-2">
-            <button className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-              Anterior
-            </button>
-            <button className="px-3 py-2 text-sm text-white bg-blue-600 border border-blue-600 rounded-md">
-              1
-            </button>
-            <button className="px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-              2
-            </button>
-            <button className="px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-              3
-            </button>
-            <button className="px-3 py-2 text-sm text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-              Siguiente
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+        {/* Lista de noticias */}
+        {filteredNews.length === 0 ? (
+          <Box className="no-news">
+            <Article sx={{ fontSize: 64, color: 'rgba(255,255,255,0.3)', mb: 2 }} />
+            <Typography variant="h6" sx={{ color: '#ffffff', mb: 1 }}>
+              No se encontraron noticias
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+              Prueba con diferentes filtros o términos de búsqueda
+            </Typography>
+          </Box>
+        ) : (
+          <>
+            <Grid container spacing={3} sx={{ justifyContent: 'center' }}>
+              {paginatedNews.map(article => (
+                <Grid 
+                  item 
+                  xs={12} 
+                  sm={6} 
+                  md={6} 
+                  lg={4} 
+                  xl={4}
+                  key={article.id}
+                  sx={{ 
+                    display: 'flex',
+                    justifyContent: 'center',
+                    maxWidth: { xs: '100%', sm: '50%', md: '50%', lg: '33.333%', xl: '33.333%' }
+                  }}
+                >
+                  <Card className="news-card" sx={{ width: '100%', maxWidth: { xs: '100%', lg: '400px' } }}>
+                    <Box className="news-card-media">
+                      <CardMedia
+                        component="img"
+                        height="200"
+                        image={article.image}
+                        alt={article.title}
+                      />
+                      <Box className="news-card-badges">
+                        <Chip
+                          size="small"
+                          label={getImpactChip(article.impact).label}
+                          className={`impact-chip ${getImpactChip(article.impact).className}`}
+                        />
+                        <Tooltip title={`Sentimiento: ${article.sentiment}`}>
+                          <Box className="sentiment-icon">
+                            {getSentimentIcon(article.sentiment)}
+                          </Box>
+                        </Tooltip>
+                      </Box>
+                    </Box>
+
+                    <CardContent className="news-card-content">
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="caption" className="news-source">
+                          {article.source}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                          <AccessTime sx={{ fontSize: 14, color: 'rgba(255,255,255,0.5)' }} />
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                            {getTimeAgo(article.publishedAt)}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Typography variant="h6" className="news-title-card">
+                        {article.title}
+                      </Typography>
+
+                      <Typography variant="body2" className="news-summary">
+                        {article.summary}
+                      </Typography>
+
+                      <Box className="news-card-footer" sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Chip
+                          size="small"
+                          icon={categories.find(cat => cat.id === article.category)?.icon}
+                          label={categories.find(cat => cat.id === article.category)?.name}
+                          className="category-tag"
+                        />
+                        <Button
+                          size="small"
+                          endIcon={<ArrowForward />}
+                          className="read-more-button"
+                        >
+                          Leer más
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+
+            {/* Paginación */}
+            {totalPages > 1 && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <Pagination
+                  count={totalPages}
+                  page={currentPage}
+                  onChange={(event, value) => setCurrentPage(value)}
+                  className="news-pagination"
+                  color="primary"
+                  size="large"
+                />
+              </Box>
+            )}
+          </>
+        )}
+      </Container>
+    </Box>
   )
 }
 

@@ -1,0 +1,259 @@
+/* Login Container */
+.login-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 30% 20%, rgba(0, 255, 255, 0.1) 0%, transparent 50%),
+              radial-gradient(circle at 70% 80%, rgba(255, 0, 255, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* Login Paper */
+.login-paper {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  border-radius: 20px !important;
+  padding: 40px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 40px rgba(0, 255, 255, 0.1) !important;
+  position: relative;
+  z-index: 1;
+  max-width: 450px;
+  width: 100%;
+}
+
+.login-paper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.03) 0%, rgba(255, 0, 255, 0.03) 100%);
+  border-radius: 20px;
+  pointer-events: none;
+}
+
+/* Login Logo */
+.login-logo {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  box-shadow: 0 8px 25px rgba(0, 255, 255, 0.4), 0 0 30px rgba(0, 255, 255, 0.2);
+  animation: logoGlow 3s ease-in-out infinite alternate;
+}
+
+@keyframes logoGlow {
+  0% {
+    box-shadow: 0 8px 25px rgba(0, 255, 255, 0.4), 0 0 30px rgba(0, 255, 255, 0.2);
+  }
+  100% {
+    box-shadow: 0 12px 35px rgba(0, 255, 255, 0.6), 0 0 50px rgba(0, 255, 255, 0.3);
+  }
+}
+
+/* Login Title */
+.login-title {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(135deg, #ffffff 0%, #00ffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.login-subtitle {
+  color: rgba(255, 255, 255, 0.7) !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+/* Login Inputs */
+.login-input .MuiOutlinedInput-root {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.login-input .MuiOutlinedInput-root fieldset {
+  border-color: rgba(0, 255, 255, 0.3) !important;
+  transition: all 0.3s ease;
+}
+
+.login-input .MuiOutlinedInput-root:hover fieldset {
+  border-color: rgba(0, 255, 255, 0.5) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+}
+
+.login-input .MuiOutlinedInput-root.Mui-focused fieldset {
+  border-color: #00ffff !important;
+  box-shadow: 0 0 25px rgba(0, 255, 255, 0.3);
+}
+
+.login-input .MuiInputLabel-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.login-input .MuiInputLabel-root.Mui-focused {
+  color: #00ffff !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.login-input .MuiOutlinedInput-input {
+  color: #ffffff !important;
+}
+
+.input-icon {
+  color: rgba(0, 255, 255, 0.7) !important;
+  transition: all 0.3s ease;
+}
+
+.login-input .MuiOutlinedInput-root.Mui-focused .input-icon {
+  color: #00ffff !important;
+  filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
+}
+
+.password-toggle {
+  color: rgba(255, 255, 255, 0.5) !important;
+  transition: all 0.3s ease;
+}
+
+.password-toggle:hover {
+  color: #00ffff !important;
+  background: rgba(0, 255, 255, 0.1) !important;
+}
+
+/* Login Button */
+.login-button {
+  background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%) !important;
+  color: #000000 !important;
+  font-weight: bold !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 25px rgba(0, 255, 255, 0.4), 0 0 30px rgba(0, 255, 255, 0.2) !important;
+  transition: all 0.3s ease !important;
+  text-transform: none !important;
+  font-size: 1.1rem !important;
+}
+
+.login-button:hover {
+  background: linear-gradient(135deg, #00e6e6 0%, #e600e6 100%) !important;
+  box-shadow: 0 12px 35px rgba(0, 255, 255, 0.6), 0 0 50px rgba(0, 255, 255, 0.3) !important;
+  transform: translateY(-2px);
+}
+
+.login-button:disabled {
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.3) 0%, rgba(255, 0, 255, 0.3) 100%) !important;
+  color: rgba(0, 0, 0, 0.5) !important;
+  box-shadow: none !important;
+}
+
+/* Register Link Button */
+.register-link-button {
+  border: 2px solid rgba(0, 255, 255, 0.3) !important;
+  color: #00ffff !important;
+  background: rgba(0, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+}
+
+.register-link-button:hover {
+  border-color: #00ffff !important;
+  background: rgba(0, 255, 255, 0.1) !important;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Error Alert */
+.login-error {
+  background: rgba(255, 0, 0, 0.1) !important;
+  border: 1px solid rgba(255, 0, 0, 0.3) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+}
+
+.login-error .MuiAlert-message {
+  color: #ff6b6b !important;
+}
+
+/* Divider */
+.login-divider {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.login-divider::before,
+.login-divider::after {
+  border-color: rgba(0, 255, 255, 0.2) !important;
+}
+
+/* Footer Links */
+.footer-link {
+  color: #00ffff !important;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.footer-link::before {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: #00ffff;
+  transition: width 0.3s ease;
+}
+
+.footer-link:hover {
+  text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+}
+
+.footer-link:hover::before {
+  width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .login-paper {
+    padding: 30px 20px !important;
+    margin: 20px;
+  }
+  
+  .login-logo {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .login-logo svg {
+    font-size: 30px !important;
+  }
+}
+
+/* Loading Animation */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.login-button .MuiCircularProgress-root {
+  color: #000000 !important;
+}

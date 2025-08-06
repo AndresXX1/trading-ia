@@ -65,7 +65,7 @@ class User(BaseModel):
         json_encoders = {ObjectId: str}
 
 class UserLogin(BaseModel):
-    username: str
+    email: str
     password: str
 
 class UserRegister(BaseModel):

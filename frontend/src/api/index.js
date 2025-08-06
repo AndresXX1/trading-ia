@@ -2,7 +2,7 @@ import axios from 'axios'
 import { jwtDecode } from 'jwt-decode'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: import.meta.env.VITE_API_URL || 'http://192.168.100.177:8000',
   timeout: 10000
 })
 
@@ -17,12 +17,12 @@ api.interceptors.request.use(config => {
 
 export default {
   async login(email, password) {
-    const response = await api.post('/auth/login', { email, password })
+    const response = await api.post('/api/auth/auth/login', { email, password })
     return response.data
   },
   
   async register(userData) {
-    const response = await api.post('/auth/register', userData)
+    const response = await api.post('/api/auth/auth/register', userData)
     return response.data
   },
   

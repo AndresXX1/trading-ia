@@ -22,12 +22,24 @@ export const router = createBrowserRouter([
           <ProtectedRoute>
             <Dashboard />
           </ProtectedRoute>
-        ),
-        children: [
-          { path: 'news', element: <News /> },
-          { path: 'charts', element: <Charts /> }
-        ]
+        )
+      },
+      {
+        path: 'dashboard/news',  // ✅ Ruta independiente
+        element: (
+          <ProtectedRoute>
+            <News />
+          </ProtectedRoute>
+        )
+      },
+      {
+        path: 'dashboard/charts',  // ✅ Ruta independiente  
+        element: (
+          <ProtectedRoute>
+            <Charts />
+          </ProtectedRoute>
+        )
       }
     ]
   }
-])
+])  

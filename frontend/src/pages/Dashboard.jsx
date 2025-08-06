@@ -1,270 +1,1016 @@
-import React from 'react'
+/* eslint-disable no-unused-vars */
+import React, { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useSelector } from 'react-redux'
+import {
+  Box,
+  Container,
+  Typography,
+  Grid,
+  Card,
+  CardContent,
+  Button,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Tabs,
+  Tab,
+  LinearProgress,
+  Avatar,
+  Badge,
+  InputAdornment,
+  Fab
+} from '@mui/material'
+import {
+  TrendingUp,
+  TrendingDown,
+  ShowChart,
+  AccountBalance,
+  Timeline,
+  Search,
+  FilterList,
+  Sort,
+  Refresh,
+  Settings,
+  Notifications,
+  SmartToy,
+  Psychology,
+  AutoGraph,
+  CandlestickChart,
+  Analytics,
+  School,
+  History,
+  Star,
+  Warning,
+  CheckCircle,
+  Cancel,
+  PlayArrow,
+  Pause,
+  Stop,
+  Speed,
+  Assessment,
+  TrendingFlat,
+  SwapVert,
+  CalendarToday,
+  AttachMoney,
+  BarChart,
+  PieChart,
+  DonutLarge
+} from '@mui/icons-material'
+import './dashboard.css'
 
 const Dashboard = () => {
   const { user } = useSelector((state) => state.auth)
   const location = useLocation()
-
-  // Verificar si estamos en la ruta principal del dashboard
   const isMainDashboard = location.pathname === '/dashboard'
 
+  // Estados para el dashboard
+  const [activeTab, setActiveTab] = useState(0)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [sortBy, setSortBy] = useState('date')
+  const [filterBy, setFilterBy] = useState('all')
+  const [tutorialOpen, setTutorialOpen] = useState(false)
+  const [aiAnalysisOpen, setAiAnalysisOpen] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+
+  // Datos mock para el dashboard
+  const [portfolioData] = useState({
+    totalValue: 125430.89,
+    todayPnL: 2642.34,
+    todayPnLPercent: 2.15,
+    openPositions: 12,
+    winningPositions: 8,
+    losingPositions: 4,
+    winRate: 73.5,
+    totalTrades: 156,
+    avgWin: 245.67,
+    avgLoss: -123.45
+  })
+
+  const [tradingHistory, setTradingHistory] = useState([
+    {
+      id: 1,
+      symbol: 'BTC/USDT',
+      type: 'BUY',
+      entry: 45200.50,
+      exit: 46800.75,
+      quantity: 0.5,
+      pnl: 800.13,
+      pnlPercent: 3.54,
+      date: '2024-01-15T14:30:00Z',
+      status: 'closed',
+      confluenceScore: 0.85,
+      aiSignal: true
+    },
+    {
+      id: 2,
+      symbol: 'ETH/USDT',
+      type: 'SELL',
+      entry: 2650.30,
+      exit: 2580.45,
+      quantity: 2.0,
+      pnl: -139.70,
+      pnlPercent: -2.63,
+      date: '2024-01-15T12:15:00Z',
+      status: 'closed',
+      confluenceScore: 0.72,
+      aiSignal: true
+    },
+    {
+      id: 3,
+      symbol: 'AAPL',
+      type: 'BUY',
+      entry: 185.50,
+      exit: null,
+      quantity: 50,
+      pnl: 425.00,
+      pnlPercent: 4.58,
+      date: '2024-01-15T10:45:00Z',
+      status: 'open',
+      confluenceScore: 0.91,
+      aiSignal: true
+    }
+  ])
+
+  const [aiSignals] = useState([
+    {
+      id: 1,
+      symbol: 'TSLA',
+      signal: 'BUY',
+      confluenceScore: 0.89,
+      targetPrice: 245.80,
+      currentPrice: 238.45,
+      stopLoss: 230.00,
+      analyses: ['Elliott Wave', 'Fibonacci', 'Support/Resistance'],
+      strength: 'HIGH',
+      timeframe: '4H'
+    },
+    {
+      id: 2,
+      symbol: 'GOLD',
+      signal: 'SELL',
+      confluenceScore: 0.76,
+      targetPrice: 1985.50,
+      currentPrice: 2010.30,
+      stopLoss: 2025.00,
+      analyses: ['Chart Pattern', 'Fibonacci'],
+      strength: 'MEDIUM',
+      timeframe: '1D'
+    }
+  ])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    // Simular actualización de datos
+    setTimeout(() => {
+      setRefreshing(false)
+    }, 2000)
+  }
+
+  const filteredHistory = tradingHistory.filter(trade => {
+    const matchesSearch = trade.symbol.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesFilter = filterBy === 'all' || trade.status === filterBy || trade.type.toLowerCase() === filterBy
+    return matchesSearch && matchesFilter
+  })
+
+  const sortedHistory = [...filteredHistory].sort((a, b) => {
+    switch (sortBy) {
+      case 'date':
+        return new Date(b.date) - new Date(a.date)
+      case 'symbol':
+        return a.symbol.localeCompare(b.symbol)
+      case 'pnl':
+        return b.pnl - a.pnl
+      case 'confluence':
+        return b.confluenceScore - a.confluenceScore
+      default:
+        return 0
+    }
+  })
+
+  if (!isMainDashboard) {
+    return <Outlet />
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <Box className="dashboard-container">
+      <Container maxWidth="xl">
         {/* Header del Dashboard */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Dashboard de Trading
-          </h1>
-          <p className="text-gray-600">
-            Bienvenido de vuelta, {user?.name || user?.email}
-          </p>
-        </div>
+        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <Box>
+            <Typography variant="h3" className="dashboard-title">
+              Dashboard de Trading IA
+            </Typography>
+            <Typography variant="h6" className="dashboard-subtitle">
+              Bienvenido de vuelta, {user?.name || user?.email}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button
+              variant="outlined"
+              startIcon={<School />}
+              onClick={() => setTutorialOpen(true)}
+              className="tutorial-button"
+              size="small"
+            >
+              Tutorial de Uso IA Trading
+            </Button>
+            <IconButton onClick={handleRefresh} className="refresh-icon" disabled={refreshing}>
+              <Refresh className={refreshing ? 'rotating' : ''} />
+            </IconButton>
+          </Box>
+        </Box>
 
-        {/* Navigation Tabs */}
-        <div className="mb-8">
-          <div className="border-b border-gray-200">
-            <nav className="-mb-px flex space-x-8">
-              <Link
-                to="/dashboard"
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition duration-200 ${
-                  isMainDashboard
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Resumen
-              </Link>
-              <Link
-                to="/dashboard/news"
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition duration-200 ${
-                  location.pathname === '/dashboard/news'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Noticias
-              </Link>
-              <Link
-                to="/dashboard/charts"
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition duration-200 ${
-                  location.pathname === '/dashboard/charts'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Gráficos
-              </Link>
-            </nav>
-          </div>
-        </div>
+        {/* Tarjetas de Resumen */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card className="summary-card portfolio">
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="caption" className="card-label">
+                      Valor del Portfolio
+                    </Typography>
+                    <Typography variant="h4" className="card-value">
+                      ${portfolioData.totalValue.toLocaleString()}
+                    </Typography>
+                    <Typography variant="body2" className="card-change positive">
+                      +{portfolioData.todayPnLPercent}% hoy
+                    </Typography>
+                  </Box>
+                  <Avatar className="card-icon portfolio-icon">
+                    <AccountBalance />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
 
-        {/* Contenido principal */}
-        {isMainDashboard ? (
-          <div className="space-y-8">
-            {/* Tarjetas de resumen */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {/* Card 1 - Portfolio Value */}
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Valor del Portfolio</p>
-                    <p className="text-2xl font-bold text-gray-900">$25,430.89</p>
-                    <p className="text-sm text-green-600">+2.5% hoy</p>
-                  </div>
-                  <div className="p-3 bg-green-100 rounded-full">
-                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card className="summary-card pnl">
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="caption" className="card-label">
+                      P&L Hoy
+                    </Typography>
+                    <Typography variant="h4" className="card-value">
+                      +${portfolioData.todayPnL.toLocaleString()}
+                    </Typography>
+                    <Typography variant="body2" className="card-change positive">
+                      En {portfolioData.openPositions} operaciones
+                    </Typography>
+                  </Box>
+                  <Avatar className="card-icon pnl-icon">
+                    <TrendingUp />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
 
-              {/* Card 2 - Today's P&L */}
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">P&L Hoy</p>
-                    <p className="text-2xl font-bold text-gray-900">+$642.34</p>
-                    <p className="text-sm text-blue-600">En 5 operaciones</p>
-                  </div>
-                  <div className="p-3 bg-blue-100 rounded-full">
-                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card className="summary-card positions">
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="caption" className="card-label">
+                      Posiciones Abiertas
+                    </Typography>
+                    <Typography variant="h4" className="card-value">
+                      {portfolioData.openPositions}
+                    </Typography>
+                    <Typography variant="body2" className="card-change">
+                      {portfolioData.winningPositions} ganando, {portfolioData.losingPositions} perdiendo
+                    </Typography>
+                  </Box>
+                  <Avatar className="card-icon positions-icon">
+                    <ShowChart />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
 
-              {/* Card 3 - Open Positions */}
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Posiciones Abiertas</p>
-                    <p className="text-2xl font-bold text-gray-900">7</p>
-                    <p className="text-sm text-purple-600">3 ganando, 4 perdiendo</p>
-                  </div>
-                  <div className="p-3 bg-purple-100 rounded-full">
-                    <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
+          <Grid item xs={12} sm={6} md={3}>
+            <Card className="summary-card winrate">
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box>
+                    <Typography variant="caption" className="card-label">
+                      Tasa de Éxito
+                    </Typography>
+                    <Typography variant="h4" className="card-value">
+                      {portfolioData.winRate}%
+                    </Typography>
+                    <Typography variant="body2" className="card-change positive">
+                      Últimos 30 días
+                    </Typography>
+                  </Box>
+                  <Avatar className="card-icon winrate-icon">
+                    <Star />
+                  </Avatar>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
 
-              {/* Card 4 - Win Rate */}
-              <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Tasa de Éxito</p>
-                    <p className="text-2xl font-bold text-gray-900">68.5%</p>
-                    <p className="text-sm text-yellow-600">Últimos 30 días</p>
-                  </div>
-                  <div className="p-3 bg-yellow-100 rounded-full">
-                    <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-            </div>
+        {/* Contenido Principal con Tabs */}
+        <Card className="main-content-card">
+          <Box sx={{ borderBottom: 1, borderColor: 'rgba(0, 255, 255, 0.2)' }}>
+            <Tabs 
+              value={activeTab} 
+              onChange={(e, newValue) => setActiveTab(newValue)}
+              className="dashboard-tabs"
+            >
+              <Tab icon={<History />} label="Historial de Operaciones" />
+              <Tab icon={<SmartToy />} label="Señales IA" />
+              <Tab icon={<Analytics />} label="Análisis Avanzado" />
+              <Tab icon={<Assessment />} label="Estadísticas" />
+              <Tab icon={<Settings />} label="Configuración" />
+            </Tabs>
+          </Box>
 
-            {/* Sección de acciones rápidas */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Quick Actions */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Acciones Rápidas</h3>
-                <div className="space-y-3">
-                  <Link
-                    to="/dashboard/charts"
-                    className="flex items-center p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg hover:from-blue-100 hover:to-indigo-100 transition duration-200"
+          {/* Tab 1: Historial de Operaciones */}
+          {activeTab === 0 && (
+            <Box className="tab-content">
+              <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
+                <TextField
+                  placeholder="Buscar por símbolo o par..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-field"
+                  size="small"
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search className="search-icon" />
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+                <FormControl size="small" className="filter-select">
+                  <InputLabel>Filtrar por</InputLabel>
+                  <Select
+                    value={filterBy}
+                    onChange={(e) => setFilterBy(e.target.value)}
+                    label="Filtrar por"
                   >
-                    <div className="p-2 bg-blue-500 rounded-lg mr-3">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Análisis de Gráficos</p>
-                      <p className="text-sm text-gray-600">Ver gráficos y análisis técnico</p>
-                    </div>
-                  </Link>
-
-                  <Link
-                    to="/dashboard/news"
-                    className="flex items-center p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg hover:from-green-100 hover:to-emerald-100 transition duration-200"
+                    <MenuItem value="all">Todos</MenuItem>
+                    <MenuItem value="open">Abiertos</MenuItem>
+                    <MenuItem value="closed">Cerrados</MenuItem>
+                    <MenuItem value="buy">Compras</MenuItem>
+                    <MenuItem value="sell">Ventas</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" className="sort-select">
+                  <InputLabel>Ordenar por</InputLabel>
+                  <Select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    label="Ordenar por"
                   >
-                    <div className="p-2 bg-green-500 rounded-lg mr-3">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">Noticias del Mercado</p>
-                      <p className="text-sm text-gray-600">Últimas noticias y análisis</p>
-                    </div>
-                  </Link>
+                    <MenuItem value="date">Fecha</MenuItem>
+                    <MenuItem value="symbol">Símbolo</MenuItem>
+                    <MenuItem value="pnl">P&L</MenuItem>
+                    <MenuItem value="confluence">Confluencia</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
 
-                  <button className="flex items-center w-full p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg hover:from-purple-100 hover:to-pink-100 transition duration-200">
-                    <div className="p-2 bg-purple-500 rounded-lg mr-3">
-                      <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                    </div>
-                    <div className="text-left">
-                      <p className="font-medium text-gray-900">Análisis con IA</p>
-                      <p className="text-sm text-gray-600">Obtener recomendaciones de IA</p>
-                    </div>
-                  </button>
-                </div>
-              </div>
+              <TableContainer component={Paper} className="history-table">
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Símbolo</TableCell>
+                      <TableCell>Tipo</TableCell>
+                      <TableCell>Entrada</TableCell>
+                      <TableCell>Salida</TableCell>
+                      <TableCell>Cantidad</TableCell>
+                      <TableCell>P&L</TableCell>
+                      <TableCell>Confluencia</TableCell>
+                      <TableCell>Estado</TableCell>
+                      <TableCell>Fecha</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {sortedHistory.map((trade) => (
+                      <TableRow key={trade.id} className="history-row">
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body2" className="symbol-text">
+                              {trade.symbol}
+                            </Typography>
+                            {trade.aiSignal && (
+                              <Tooltip title="Señal generada por IA">
+                                <SmartToy className="ai-indicator" />
+                              </Tooltip>
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={trade.type}
+                            className={`type-chip ${trade.type.toLowerCase()}`}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell>${trade.entry.toLocaleString()}</TableCell>
+                        <TableCell>
+                          {trade.exit ? `$${trade.exit.toLocaleString()}` : '-'}
+                        </TableCell>
+                        <TableCell>{trade.quantity}</TableCell>
+                        <TableCell>
+                          <Typography 
+                            variant="body2" 
+                            className={`pnl-text ${trade.pnl >= 0 ? 'positive' : 'negative'}`}
+                          >
+                            {trade.pnl >= 0 ? '+' : ''}${trade.pnl.toFixed(2)}
+                            <br />
+                            <span className="pnl-percent">
+                              ({trade.pnl >= 0 ? '+' : ''}{trade.pnlPercent.toFixed(2)}%)
+                            </span>
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={trade.confluenceScore * 100}
+                              className="confluence-bar"
+                              sx={{ width: 60, height: 6 }}
+                            />
+                            <Typography variant="caption">
+                              {(trade.confluenceScore * 100).toFixed(0)}%
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={trade.status}
+                            className={`status-chip ${trade.status}`}
+                            size="small"
+                            icon={trade.status === 'open' ? <PlayArrow /> : <CheckCircle />}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="caption">
+                            {new Date(trade.date).toLocaleDateString()}
+                            <br />
+                            {new Date(trade.date).toLocaleTimeString()}
+                          </Typography>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+          )}
 
-              {/* Recent Activity */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Actividad Reciente</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-green-100 rounded-full mr-3">
-                        <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Compra AAPL</p>
-                        <p className="text-xs text-gray-600">Hace 2 horas</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-medium text-green-600">+$124.50</span>
-                  </div>
+          {/* Tab 2: Señales IA */}
+          {activeTab === 1 && (
+            <Box className="tab-content">
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6" className="section-title">
+                  Señales Generadas por IA
+                </Typography>
+                <Button
+                  variant="contained"
+                  startIcon={<Psychology />}
+                  onClick={() => setAiAnalysisOpen(true)}
+                  className="ai-analysis-button"
+                >
+                  Generar Nuevo Análisis
+                </Button>
+              </Box>
 
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-red-100 rounded-full mr-3">
-                        <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Venta TSLA</p>
-                        <p className="text-xs text-gray-600">Hace 4 horas</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-medium text-red-600">-$89.23</span>
-                  </div>
+              <Grid container spacing={3}>
+                {aiSignals.map((signal) => (
+                  <Grid item xs={12} md={6} key={signal.id}>
+                    <Card className="signal-card">
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                          <Box>
+                            <Typography variant="h6" className="signal-symbol">
+                              {signal.symbol}
+                            </Typography>
+                            <Typography variant="caption" className="signal-timeframe">
+                              Timeframe: {signal.timeframe}
+                            </Typography>
+                          </Box>
+                          <Chip
+                            label={signal.signal}
+                            className={`signal-chip ${signal.signal.toLowerCase()}`}
+                            icon={signal.signal === 'BUY' ? <TrendingUp /> : <TrendingDown />}
+                          />
+                        </Box>
 
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-blue-100 rounded-full mr-3">
-                        <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Alerta de precio BTC</p>
-                        <p className="text-xs text-gray-600">Hace 6 horas</p>
-                      </div>
-                    </div>
-                    <span className="text-sm font-medium text-blue-600">$45,200</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="body2" className="signal-label">
+                            Confluencia Score
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={signal.confluenceScore * 100}
+                              className="confluence-progress"
+                              sx={{ flex: 1, height: 8 }}
+                            />
+                            <Typography variant="body2" className="confluence-score">
+                              {(signal.confluenceScore * 100).toFixed(0)}%
+                            </Typography>
+                          </Box>
+                        </Box>
 
-            {/* Market Overview */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Resumen del Mercado</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm font-medium text-gray-600">S&P 500</p>
-                  <p className="text-xl font-bold text-gray-900">4,567.89</p>
-                  <p className="text-sm text-green-600">+0.75%</p>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm font-medium text-gray-600">NASDAQ</p>
-                  <p className="text-xl font-bold text-gray-900">15,234.12</p>
-                  <p className="text-sm text-green-600">+1.24%</p>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm font-medium text-gray-600">BTC/USD</p>
-                  <p className="text-xl font-bold text-gray-900">$45,200</p>
-                  <p className="text-sm text-red-600">-2.15%</p>
-                </div>
-                <div className="text-center p-4 bg-gray-50 rounded-lg">
-                  <p className="text-sm font-medium text-gray-600">EUR/USD</p>
-                  <p className="text-xl font-bold text-gray-900">1.0845</p>
-                  <p className="text-sm text-green-600">+0.32%</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          // Aquí se renderizarán las rutas hijas (News, Charts)
-          <Outlet />
-        )}
-      </div>
-    </div>
+                        <Grid container spacing={2} sx={{ mb: 2 }}>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" className="signal-label">
+                              Precio Actual
+                            </Typography>
+                            <Typography variant="body1" className="signal-price">
+                              ${signal.currentPrice}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" className="signal-label">
+                              Precio Objetivo
+                            </Typography>
+                            <Typography variant="body1" className="signal-price target">
+                              ${signal.targetPrice}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" className="signal-label">
+                              Stop Loss
+                            </Typography>
+                            <Typography variant="body1" className="signal-price stop">
+                              ${signal.stopLoss}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={6}>
+                            <Typography variant="caption" className="signal-label">
+                              Fuerza
+                            </Typography>
+                            <Chip
+                              label={signal.strength}
+                              size="small"
+                              className={`strength-chip ${signal.strength.toLowerCase()}`}
+                            />
+                          </Grid>
+                        </Grid>
+
+                        <Box sx={{ mb: 2 }}>
+                          <Typography variant="caption" className="signal-label">
+                            Análisis Confluentes
+                          </Typography>
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                            {signal.analyses.map((analysis, index) => (
+                              <Chip
+                                key={index}
+                                label={analysis}
+                                size="small"
+                                className="analysis-chip"
+                              />
+                            ))}
+                          </Box>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                          <Button
+                            variant="contained"
+                            size="small"
+                            className="execute-button"
+                            startIcon={<PlayArrow />}
+                          >
+                            Ejecutar
+                          </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            className="watch-button"
+                            startIcon={<Star />}
+                          >
+                            Observar
+                          </Button>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          )}
+
+          {/* Tab 3: Análisis Avanzado */}
+          {activeTab === 2 && (
+            <Box className="tab-content">
+              <Typography variant="h6" className="section-title" sx={{ mb: 3 }}>
+                Herramientas de Análisis Avanzado
+              </Typography>
+
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card className="analysis-tool-card">
+                    <CardContent>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Avatar className="tool-icon elliott">
+                          <AutoGraph />
+                        </Avatar>
+                        <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+                          Ondas de Elliott
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
+                          Análisis de patrones de ondas para predecir movimientos futuros
+                        </Typography>
+                        <Button variant="contained" className="tool-button">
+                          Analizar
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card className="analysis-tool-card">
+                    <CardContent>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Avatar className="tool-icon fibonacci">
+                          <Timeline />
+                        </Avatar>
+                        <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+                          Fibonacci
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
+                          Niveles de retroceso y extensión de Fibonacci
+                        </Typography>
+                        <Button variant="contained" className="tool-button">
+                          Calcular
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card className="analysis-tool-card">
+                    <CardContent>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Avatar className="tool-icon patterns">
+                          <CandlestickChart />
+                        </Avatar>
+                        <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+                          Patrones Chartistas
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
+                          Detección automática de patrones de velas japonesas
+                        </Typography>
+                        <Button variant="contained" className="tool-button">
+                          Detectar
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card className="analysis-tool-card">
+                    <CardContent>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Avatar className="tool-icon support">
+                          <BarChart />
+                        </Avatar>
+                        <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+                          Soporte y Resistencia
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
+                          Identificación de niveles clave de precio
+                        </Typography>
+                        <Button variant="contained" className="tool-button">
+                          Identificar
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card className="analysis-tool-card">
+                    <CardContent>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Avatar className="tool-icon confluence">
+                          <DonutLarge />
+                        </Avatar>
+                        <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+                          Detector de Confluencias
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
+                          Encuentra puntos donde múltiples análisis confluyen
+                        </Typography>
+                        <Button variant="contained" className="tool-button">
+                          Detectar
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} md={6} lg={4}>
+                  <Card className="analysis-tool-card">
+                    <CardContent>
+                      <Box sx={{ textAlign: 'center' }}>
+                        <Avatar className="tool-icon risk">
+                          <Speed />
+                        </Avatar>
+                        <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
+                          Gestión de Riesgo
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 2, color: 'rgba(255,255,255,0.7)' }}>
+                          Calculadora de posición y gestión de riesgo
+                        </Typography>
+                        <Button variant="contained" className="tool-button">
+                          Calcular
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {/* Tab 4: Estadísticas */}
+          {activeTab === 3 && (
+            <Box className="tab-content">
+              <Typography variant="h6" className="section-title" sx={{ mb: 3 }}>
+                Estadísticas de Trading
+              </Typography>
+
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Card className="stats-card">
+                    <CardContent>
+                      <Typography variant="h6" sx={{ mb: 2 }}>
+                        Rendimiento General
+                      </Typography>
+                      <Box className="stats-grid">
+                        <Box className="stat-item">
+                          <Typography variant="caption">Total de Operaciones</Typography>
+                          <Typography variant="h5">{portfolioData.totalTrades}</Typography>
+                        </Box>
+                        <Box className="stat-item">
+                          <Typography variant="caption">Ganancia Promedio</Typography>
+                          <Typography variant="h5" className="positive">
+                            ${portfolioData.avgWin}
+                          </Typography>
+                        </Box>
+                        <Box className="stat-item">
+                          <Typography variant="caption">Pérdida Promedio</Typography>
+                          <Typography variant="h5" className="negative">
+                            ${portfolioData.avgLoss}
+                          </Typography>
+                        </Box>
+                        <Box className="stat-item">
+                          <Typography variant="caption">Ratio Ganancia/Pérdida</Typography>
+                          <Typography variant="h5">
+                            {(Math.abs(portfolioData.avgWin / portfolioData.avgLoss)).toFixed(2)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Card className="stats-card">
+                    <CardContent>
+                      <Typography variant="h6" sx={{ mb: 2 }}>
+                        Análisis por Timeframe
+                      </Typography>
+                      <Box className="timeframe-stats">
+                        {['1H', '4H', '1D', '1W'].map((tf) => (
+                          <Box key={tf} className="timeframe-item">
+                            <Typography variant="body2">{tf}</Typography>
+                            <LinearProgress
+                              variant="determinate"
+                              value={Math.random() * 100}
+                              className="timeframe-progress"
+                            />
+                            <Typography variant="caption">
+                              {(Math.random() * 100).toFixed(0)}% éxito
+                            </Typography>
+                          </Box>
+                        ))}
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+
+          {/* Tab 5: Configuración */}
+          {activeTab === 4 && (
+            <Box className="tab-content">
+              <Typography variant="h6" className="section-title" sx={{ mb: 3 }}>
+                Configuración del Sistema
+              </Typography>
+
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={6}>
+                  <Card className="config-card">
+                    <CardContent>
+                      <Typography variant="h6" sx={{ mb: 2 }}>
+                        Configuración de IA
+                      </Typography>
+                      <Box className="config-options">
+                        <FormControl fullWidth sx={{ mb: 2 }}>
+                          <InputLabel>Umbral de Confluencia</InputLabel>
+                          <Select defaultValue={0.6} label="Umbral de Confluencia">
+                            <MenuItem value={0.5}>50% - Conservador</MenuItem>
+                            <MenuItem value={0.6}>60% - Balanceado</MenuItem>
+                            <MenuItem value={0.7}>70% - Agresivo</MenuItem>
+                            <MenuItem value={0.8}>80% - Muy Agresivo</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <FormControl fullWidth sx={{ mb: 2 }}>
+                          <InputLabel>Análisis Activos</InputLabel>
+                          <Select multiple defaultValue={['elliott', 'fibonacci', 'patterns']}>
+                            <MenuItem value="elliott">Ondas de Elliott</MenuItem>
+                            <MenuItem value="fibonacci">Fibonacci</MenuItem>
+                            <MenuItem value="patterns">Patrones Chartistas</MenuItem>
+                            <MenuItem value="support">Soporte/Resistencia</MenuItem>
+                          </Select>
+                        </FormControl>
+
+                        <TextField
+                          fullWidth
+                          label="Riesgo por Operación (%)"
+                          type="number"
+                          defaultValue={2}
+                          sx={{ mb: 2 }}
+                        />
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Card className="config-card">
+                    <CardContent>
+                      <Typography variant="h6" sx={{ mb: 2 }}>
+                        Notificaciones
+                      </Typography>
+                      <Box className="notification-settings">
+                        <Box className="setting-item">
+                          <Typography variant="body2">Señales de Alta Confluencia</Typography>
+                          <Button variant="outlined" size="small">Activado</Button>
+                        </Box>
+                        <Box className="setting-item">
+                          <Typography variant="body2">Alertas de Stop Loss</Typography>
+                          <Button variant="outlined" size="small">Activado</Button>
+                        </Box>
+                        <Box className="setting-item">
+                          <Typography variant="body2">Objetivos Alcanzados</Typography>
+                          <Button variant="outlined" size="small">Activado</Button>
+                        </Box>
+                        <Box className="setting-item">
+                          <Typography variant="body2">Resumen Diario</Typography>
+                          <Button variant="outlined" size="small">Desactivado</Button>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            </Box>
+          )}
+        </Card>
+
+        {/* Floating Action Button para acciones rápidas */}
+        <Fab
+          color="primary"
+          className="floating-action-button"
+          sx={{ position: 'fixed', bottom: 24, right: 24 }}
+        >
+          <SmartToy />
+        </Fab>
+
+        {/* Dialog Tutorial */}
+        <Dialog
+          open={tutorialOpen}
+          onClose={() => setTutorialOpen(false)}
+          maxWidth="md"
+          fullWidth
+          className="tutorial-dialog"
+        >
+          <DialogTitle className="dialog-title">
+            <SmartToy sx={{ mr: 1 }} />
+            Tutorial de Uso IA Trading
+          </DialogTitle>
+          <DialogContent className="dialog-content">
+            <Typography variant="body1" sx={{ mb: 2 }}>
+              Bienvenido al sistema de trading con Inteligencia Artificial. Aquí aprenderás a usar todas las funcionalidades:
+            </Typography>
+            
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ mb: 1, color: '#00ffff' }}>
+                1. Detector de Confluencias
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Nuestro sistema analiza múltiples indicadores técnicos (Ondas de Elliott, Fibonacci, Patrones Chartistas, Soporte/Resistencia) 
+                para encontrar puntos donde confluyen varios análisis, aumentando la probabilidad de éxito.
+              </Typography>
+            </Box>
+
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ mb: 1, color: '#00ffff' }}>
+                2. Señales Automáticas
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                El sistema genera señales automáticamente cuando detecta confluencias con alta probabilidad. 
+                Cada señal incluye precio de entrada, stop loss, take profit y score de confluencia.
+              </Typography>
+            </Box>
+
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="h6" sx={{ mb: 1, color: '#00ffff' }}>
+                3. Gestión de Riesgo
+              </Typography>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Todas las señales incluyen cálculos automáticos de stop loss basados en ATR y estructura del mercado, 
+                asegurando una gestión de riesgo adecuada.
+              </Typography>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setTutorialOpen(false)} className="dialog-button">
+              Entendido
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Dialog Análisis IA */}
+        <Dialog
+          open={aiAnalysisOpen}
+          onClose={() => setAiAnalysisOpen(false)}
+          maxWidth="sm"
+          fullWidth
+          className="ai-dialog"
+        >
+          <DialogTitle className="dialog-title">
+            <Psychology sx={{ mr: 1 }} />
+            Generar Análisis con IA
+          </DialogTitle>
+          <DialogContent className="dialog-content">
+            <TextField
+              fullWidth
+              label="Símbolo a Analizar"
+              placeholder="Ej: BTC/USDT, AAPL, EUR/USD"
+              sx={{ mb: 2 }}
+            />
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Timeframe</InputLabel>
+              <Select defaultValue="4H">
+                <MenuItem value="1H">1 Hora</MenuItem>
+                <MenuItem value="4H">4 Horas</MenuItem>
+                <MenuItem value="1D">1 Día</MenuItem>
+                <MenuItem value="1W">1 Semana</MenuItem>
+              </Select>
+            </FormControl>
+            <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+              El análisis incluirá todos los indicadores configurados y generará una señal si encuentra confluencias suficientes.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAiAnalysisOpen(false)} className="dialog-button-secondary">
+              Cancelar
+            </Button>
+            <Button onClick={() => setAiAnalysisOpen(false)} className="dialog-button">
+              Generar Análisis
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Container>
+    </Box>
   )
 }
 

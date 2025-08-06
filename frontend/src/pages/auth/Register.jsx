@@ -2,6 +2,35 @@ import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
 import { registerUser } from '../../features/auth/authSlice'
+import {
+  Box,
+  Container,
+  Paper,
+  TextField,
+  Button,
+  Typography,
+  Alert,
+  InputAdornment,
+  IconButton,
+  CircularProgress,
+  Divider,
+  Checkbox,
+  FormControlLabel,
+  LinearProgress
+} from '@mui/material'
+import {
+  Person,
+  Email,
+  Lock,
+  Visibility,
+  VisibilityOff,
+  PersonAdd,
+  SmartToy,
+  Login as LoginIcon,
+  CheckCircle,
+  Cancel
+} from '@mui/icons-material'
+import './register.css'
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -13,7 +42,9 @@ const Register = () => {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [errors, setErrors] = useState({})
-
+  const [termsAccepted, setTermsAccepted] = useState(false)
+  const [passwordStrength, setPasswordStrength] = useState(0)
+  
   const dispatch = useDispatch()
   const navigate = useNavigate()
   const { status, error, token } = useSelector((state) => state.auth)
@@ -21,9 +52,19 @@ const Register = () => {
   // Redirigir si ya está autenticado
   useEffect(() => {
     if (token) {
-      navigate('/dashboard')
+      navigate('/login')
     }
   }, [token, navigate])
+
+  // Calcular fuerza de contraseña
+  const calculatePasswordStrength = (password) => {
+    let strength = 0
+    if (password.length >= 6) strength += 25
+    if (password.length >= 8) strength += 25
+    if (/[A-Z]/.test(password)) strength += 25
+    if (/[0-9]/.test(password)) strength += 25
+    return strength
+  }
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -31,7 +72,12 @@ const Register = () => {
       ...prev,
       [name]: value
     }))
-    
+
+    // Calcular fuerza de contraseña
+    if (name === 'password') {
+      setPasswordStrength(calculatePasswordStrength(value))
+    }
+
     // Limpiar error específico cuando el usuario empieza a escribir
     if (errors[name]) {
       setErrors(prev => ({
@@ -43,7 +89,7 @@ const Register = () => {
 
   const validateForm = () => {
     const newErrors = {}
-
+    
     // Validar nombre
     if (!formData.name.trim()) {
       newErrors.name = 'El nombre es requerido'
@@ -72,6 +118,11 @@ const Register = () => {
       newErrors.confirmPassword = 'Las contraseñas no coinciden'
     }
 
+    // Validar términos
+    if (!termsAccepted) {
+      newErrors.terms = 'Debes aceptar los términos y condiciones'
+    }
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -84,7 +135,7 @@ const Register = () => {
     }
 
     const userData = {
-      name: formData.name.trim(),
+      username: formData.name.trim(),
       email: formData.email.trim().toLowerCase(),
       password: formData.password
     }
@@ -97,227 +148,282 @@ const Register = () => {
     }
   }
 
+  const getPasswordStrengthColor = () => {
+    if (passwordStrength < 25) return '#ff4444'
+    if (passwordStrength < 50) return '#ff8800'
+    if (passwordStrength < 75) return '#ffaa00'
+    return '#00ff88'
+  }
+
+  const getPasswordStrengthText = () => {
+    if (passwordStrength < 25) return 'Muy débil'
+    if (passwordStrength < 50) return 'Débil'
+    if (passwordStrength < 75) return 'Media'
+    return 'Fuerte'
+  }
+
   const isLoading = status === 'loading'
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        {/* Header */}
-        <div className="text-center">
-          <div className="mx-auto h-12 w-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
-            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-          </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Crear una cuenta
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
-            Únete a la revolución del trading con IA
-          </p>
-        </div>
+    <Box className="register-container">
+      <Container maxWidth="sm">
+        <Box sx={{ 
+          minHeight: '100vh', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          py: 4
+        }}>
+          <Paper className="register-paper" elevation={0}>
+            {/* Logo y Título */}
+            <Box sx={{ textAlign: 'center', mb: 4 }}>
+              <Box className="register-logo">
+                <SmartToy sx={{ fontSize: 40, color: '#000' }} />
+              </Box>
+              <Typography variant="h4" className="register-title" sx={{ mt: 2, mb: 1 }}>
+                Únete a Trading IA
+              </Typography>
+              <Typography variant="body1" className="register-subtitle">
+                Comienza tu revolución en el trading inteligente
+              </Typography>
+            </Box>
 
-        {/* Form */}
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
-            {/* Error general */}
+            {/* Error Alert */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex">
-                  <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                  </svg>
-                  <p className="ml-3 text-sm text-red-800">{error}</p>
-                </div>
-              </div>
+              <Alert 
+                severity="error" 
+                className="register-error"
+                sx={{ mb: 3 }}
+              >
+                {error}
+              </Alert>
             )}
 
-            {/* Campo Nombre */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre completo
-              </label>
-              <input
-                id="name"
+            {/* Formulario */}
+            <Box component="form" onSubmit={handleSubmit}>
+              {/* Campo Nombre */}
+              <TextField
+                fullWidth
                 name="name"
-                type="text"
-                autoComplete="name"
+                label="Nombre Completo"
                 value={formData.name}
                 onChange={handleChange}
-                className={`appearance-none relative block w-full px-3 py-3 border ${
-                  errors.name ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200`}
-                placeholder="Tu nombre completo"
+                error={!!errors.name}
+                helperText={errors.name}
+                required
+                className="register-input"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Person className="input-icon" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ mb: 3 }}
               />
-              {errors.name && (
-                <p className="mt-2 text-sm text-red-600">{errors.name}</p>
-              )}
-            </div>
 
-            {/* Campo Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Correo electrónico
-              </label>
-              <input
-                id="email"
-                name="email"
+              {/* Campo Email */}
+              <TextField
+                fullWidth
                 type="email"
-                autoComplete="email"
+                name="email"
+                label="Correo Electrónico"
                 value={formData.email}
                 onChange={handleChange}
-                className={`appearance-none relative block w-full px-3 py-3 border ${
-                  errors.email ? 'border-red-300' : 'border-gray-300'
-                } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200`}
-                placeholder="tu@email.com"
-              />
-              {errors.email && (
-                <p className="mt-2 text-sm text-red-600">{errors.email}</p>
-              )}
-            </div>
-
-            {/* Campo Contraseña */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Contraseña
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  className={`appearance-none relative block w-full px-3 py-3 pr-10 border ${
-                    errors.password ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200`}
-                  placeholder="Mínimo 6 caracteres"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              {errors.password && (
-                <p className="mt-2 text-sm text-red-600">{errors.password}</p>
-              )}
-            </div>
-
-            {/* Campo Confirmar Contraseña */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                Confirmar contraseña
-              </label>
-              <div className="relative">
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className={`appearance-none relative block w-full px-3 py-3 pr-10 border ${
-                    errors.confirmPassword ? 'border-red-300' : 'border-gray-300'
-                  } placeholder-gray-500 text-gray-900 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-200`}
-                  placeholder="Confirma tu contraseña"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? (
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p className="mt-2 text-sm text-red-600">{errors.confirmPassword}</p>
-              )}
-            </div>
-
-            {/* Términos y condiciones */}
-            <div className="flex items-start">
-              <input
-                id="terms"
-                name="terms"
-                type="checkbox"
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                error={!!errors.email}
+                helperText={errors.email}
                 required
+                className="register-input"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Email className="input-icon" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ mb: 3 }}
               />
-              <label htmlFor="terms" className="ml-2 block text-sm text-gray-600">
-                Acepto los{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-500">
-                  términos y condiciones
-                </a>{' '}
-                y la{' '}
-                <a href="#" className="text-blue-600 hover:text-blue-500">
-                  política de privacidad
-                </a>
-              </label>
-            </div>
 
-            {/* Botón de registro */}
-            <div>
-              <button
+              {/* Campo Contraseña */}
+              <TextField
+                fullWidth
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                label="Contraseña"
+                value={formData.password}
+                onChange={handleChange}
+                error={!!errors.password}
+                helperText={errors.password}
+                required
+                className="register-input"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Lock className="input-icon" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        className="password-toggle"
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ mb: 2 }}
+              />
+
+              {/* Indicador de fuerza de contraseña */}
+              {formData.password && (
+                <Box sx={{ mb: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                      Fuerza de contraseña
+                    </Typography>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ color: getPasswordStrengthColor(), fontWeight: 'bold' }}
+                    >
+                      {getPasswordStrengthText()}
+                    </Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={passwordStrength}
+                    className="password-strength"
+                    sx={{
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      '& .MuiLinearProgress-bar': {
+                        backgroundColor: getPasswordStrengthColor(),
+                        borderRadius: 3,
+                      }
+                    }}
+                  />
+                </Box>
+              )}
+
+              {/* Campo Confirmar Contraseña */}
+              <TextField
+                fullWidth
+                name="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                label="Confirmar Contraseña"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                error={!!errors.confirmPassword}
+                helperText={errors.confirmPassword}
+                required
+                className="register-input"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Lock className="input-icon" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        edge="end"
+                        className="password-toggle"
+                      >
+                        {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                      {formData.confirmPassword && (
+                        <Box sx={{ ml: 1 }}>
+                          {formData.password === formData.confirmPassword ? (
+                            <CheckCircle sx={{ color: '#00ff88', fontSize: 20 }} />
+                          ) : (
+                            <Cancel sx={{ color: '#ff4444', fontSize: 20 }} />
+                          )}
+                        </Box>
+                      )}
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{ mb: 3 }}
+              />
+
+              {/* Términos y condiciones */}
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    className="terms-checkbox"
+                  />
+                }
+                label={
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                    Acepto los{' '}
+                    <Link to="/terms" className="terms-link">
+                      términos y condiciones
+                    </Link>
+                    {' '}y la{' '}
+                    <Link to="/privacy" className="terms-link">
+                      política de privacidad
+                    </Link>
+                  </Typography>
+                }
+                sx={{ mb: 3, alignItems: 'flex-start' }}
+              />
+              {errors.terms && (
+                <Typography variant="caption" sx={{ color: '#ff4444', display: 'block', mt: -2, mb: 2 }}>
+                  {errors.terms}
+                </Typography>
+              )}
+
+              {/* Botón de registro */}
+              <Button
                 type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
                 disabled={isLoading}
-                className={`group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-lg text-white ${
-                  isLoading
-                    ? 'bg-gray-400 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500'
-                } transition duration-200 transform hover:scale-[1.02]`}
+                className="register-button"
+                startIcon={isLoading ? <CircularProgress size={20} /> : <PersonAdd />}
+                sx={{ mb: 3, py: 1.5 }}
               >
-                {isLoading ? (
-                  <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Creando cuenta...
-                  </div>
-                ) : (
-                  'Crear cuenta'
-                )}
-              </button>
-            </div>
-          </div>
-        </form>
+                {isLoading ? 'Creando Cuenta...' : 'Crear Cuenta'}
+              </Button>
+            </Box>
 
-        {/* Link a login */}
-        <div className="text-center">
-          <p className="text-sm text-gray-600">
-            ¿Ya tienes una cuenta?{' '}
-            <Link
-              to="/login"
-              className="font-medium text-blue-600 hover:text-blue-500 transition duration-200"
-            >
-              Inicia sesión aquí
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
+            <Divider className="register-divider" sx={{ my: 3 }}>
+              <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.6)' }}>
+                ¿Ya tienes cuenta?
+              </Typography>
+            </Divider>
+
+            {/* Link de Login */}
+            <Box sx={{ textAlign: 'center' }}>
+              <Button
+                component={Link}
+                to="/login"
+                variant="outlined"
+                startIcon={<LoginIcon />}
+                className="login-link-button"
+                fullWidth
+              >
+                Iniciar Sesión
+              </Button>
+            </Box>
+
+            {/* Footer del formulario */}
+            <Box sx={{ textAlign: 'center', mt: 4, pt: 3, borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                Al registrarte, te unes a más de 15,000 traders que confían en nuestra IA
+              </Typography>
+            </Box>
+          </Paper>
+        </Box>
+      </Container>
+    </Box>
   )
 }
 

@@ -1,0 +1,794 @@
+/* Dashboard Container */
+.dashboard-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%);
+  padding: 40px 0;
+  position: relative;
+}
+
+.dashboard-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 25% 25%, rgba(0, 255, 255, 0.08) 0%, transparent 50%),
+              radial-gradient(circle at 75% 75%, rgba(255, 0, 255, 0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* Dashboard Title */
+.dashboard-title {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(135deg, #ffffff 0%, #00ffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+  z-index: 1;
+}
+
+.dashboard-subtitle {
+  color: rgba(255, 255, 255, 0.7) !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+/* Tutorial Button */
+.tutorial-button {
+  border: 2px solid rgba(0, 255, 255, 0.3) !important;
+  color: #00ffff !important;
+  background: rgba(0, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+}
+
+.tutorial-button:hover {
+  border-color: #00ffff !important;
+  background: rgba(0, 255, 255, 0.1) !important;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Refresh Icon */
+.refresh-icon {
+  background: rgba(0, 255, 255, 0.1) !important;
+  color: #00ffff !important;
+  border: 1px solid rgba(0, 255, 255, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.refresh-icon:hover {
+  background: rgba(0, 255, 255, 0.2) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.rotating {
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Summary Cards */
+.summary-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  transition: all 0.3s ease !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.02) 0%, rgba(255, 0, 255, 0.02) 100%);
+  pointer-events: none;
+}
+
+.summary-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3), 0 0 25px rgba(0, 255, 255, 0.2) !important;
+  border-color: rgba(0, 255, 255, 0.4) !important;
+}
+
+.summary-card.portfolio {
+  border-left: 4px solid #00ff88 !important;
+}
+
+.summary-card.pnl {
+  border-left: 4px solid #00ffff !important;
+}
+
+.summary-card.positions {
+  border-left: 4px solid #ff00ff !important;
+}
+
+.summary-card.winrate {
+  border-left: 4px solid #ffaa00 !important;
+}
+
+/* Card Content */
+.card-label {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card-value {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.card-change {
+  font-weight: 600 !important;
+}
+
+.card-change.positive {
+  color: #00ff88 !important;
+  text-shadow: 0 0 5px rgba(0, 255, 136, 0.5);
+}
+
+.card-change.negative {
+  color: #ff4444 !important;
+  text-shadow: 0 0 5px rgba(255, 68, 68, 0.5);
+}
+
+/* Card Icons */
+.card-icon {
+  width: 60px !important;
+  height: 60px !important;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.2) 0%, rgba(255, 0, 255, 0.2) 100%) !important;
+  border: 2px solid rgba(0, 255, 255, 0.3) !important;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease !important;
+}
+
+.portfolio-icon {
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.2) 0%, rgba(0, 200, 100, 0.2) 100%) !important;
+  border-color: rgba(0, 255, 136, 0.4) !important;
+  color: #00ff88 !important;
+}
+
+.pnl-icon {
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.2) 0%, rgba(0, 200, 255, 0.2) 100%) !important;
+  border-color: rgba(0, 255, 255, 0.4) !important;
+  color: #00ffff !important;
+}
+
+.positions-icon {
+  background: linear-gradient(135deg, rgba(255, 0, 255, 0.2) 0%, rgba(200, 0, 255, 0.2) 100%) !important;
+  border-color: rgba(255, 0, 255, 0.4) !important;
+  color: #ff00ff !important;
+}
+
+.winrate-icon {
+  background: linear-gradient(135deg, rgba(255, 170, 0, 0.2) 0%, rgba(255, 200, 0, 0.2) 100%) !important;
+  border-color: rgba(255, 170, 0, 0.4) !important;
+  color: #ffaa00 !important;
+}
+
+/* Main Content Card */
+.main-content-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Dashboard Tabs */
+.dashboard-tabs .MuiTab-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  transition: all 0.3s ease !important;
+}
+
+.dashboard-tabs .MuiTab-root:hover {
+  color: #00ffff !important;
+  background: rgba(0, 255, 255, 0.05) !important;
+}
+
+.dashboard-tabs .MuiTab-root.Mui-selected {
+  color: #00ffff !important;
+  text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+}
+
+.dashboard-tabs .MuiTabs-indicator {
+  background: linear-gradient(90deg, #00ffff 0%, #ff00ff 100%) !important;
+  height: 3px !important;
+  border-radius: 2px;
+}
+
+/* Tab Content */
+.tab-content {
+  padding: 24px;
+  position: relative;
+  z-index: 1;
+}
+
+.section-title {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Search and Filter Fields */
+.search-field .MuiOutlinedInput-root,
+.filter-select .MuiOutlinedInput-root,
+.sort-select .MuiOutlinedInput-root {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.search-field .MuiOutlinedInput-root fieldset,
+.filter-select .MuiOutlinedInput-root fieldset,
+.sort-select .MuiOutlinedInput-root fieldset {
+  border-color: rgba(0, 255, 255, 0.3) !important;
+}
+
+.search-field .MuiOutlinedInput-root:hover fieldset,
+.filter-select .MuiOutlinedInput-root:hover fieldset,
+.sort-select .MuiOutlinedInput-root:hover fieldset {
+  border-color: rgba(0, 255, 255, 0.5) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+}
+
+.search-field .MuiOutlinedInput-input,
+.filter-select .MuiOutlinedInput-input,
+.sort-select .MuiOutlinedInput-input {
+  color: #ffffff !important;
+}
+
+.search-field .MuiInputLabel-root,
+.filter-select .MuiInputLabel-root,
+.sort-select .MuiInputLabel-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.search-icon {
+  color: rgba(0, 255, 255, 0.7) !important;
+}
+
+/* History Table */
+.history-table {
+  background: rgba(255, 255, 255, 0.02) !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  backdrop-filter: blur(10px);
+}
+
+.history-table .MuiTableHead-root {
+  background: rgba(0, 255, 255, 0.1) !important;
+}
+
+.history-table .MuiTableCell-head {
+  color: #00ffff !important;
+  font-weight: bold !important;
+  border-bottom: 1px solid rgba(0, 255, 255, 0.3) !important;
+}
+
+.history-table .MuiTableCell-body {
+  color: rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.history-row:hover {
+  background: rgba(0, 255, 255, 0.05) !important;
+}
+
+/* Table Elements */
+.symbol-text {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.ai-indicator {
+  color: #00ffff !important;
+  font-size: 16px !important;
+  filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5));
+}
+
+.type-chip.buy {
+  background: rgba(0, 255, 136, 0.2) !important;
+  color: #00ff88 !important;
+  border: 1px solid rgba(0, 255, 136, 0.4) !important;
+}
+
+.type-chip.sell {
+  background: rgba(255, 68, 68, 0.2) !important;
+  color: #ff4444 !important;
+  border: 1px solid rgba(255, 68, 68, 0.4) !important;
+}
+
+.pnl-text.positive {
+  color: #00ff88 !important;
+  font-weight: bold !important;
+}
+
+.pnl-text.negative {
+  color: #ff4444 !important;
+  font-weight: bold !important;
+}
+
+.pnl-percent {
+  font-size: 0.8em;
+  opacity: 0.8;
+}
+
+.confluence-bar .MuiLinearProgress-bar {
+  background: linear-gradient(90deg, #ff4444 0%, #ffaa00 50%, #00ff88 100%) !important;
+}
+
+.status-chip.open {
+  background: rgba(0, 255, 255, 0.2) !important;
+  color: #00ffff !important;
+  border: 1px solid rgba(0, 255, 255, 0.4) !important;
+}
+
+.status-chip.closed {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Signal Cards */
+.signal-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  transition: all 0.3s ease !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.signal-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3), 0 0 25px rgba(0, 255, 255, 0.2) !important;
+  border-color: rgba(0, 255, 255, 0.4) !important;
+}
+
+.signal-symbol {
+  color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+.signal-timeframe {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.signal-chip.buy {
+  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%) !important;
+  color: #000000 !important;
+  font-weight: bold !important;
+}
+
+.signal-chip.sell {
+  background: linear-gradient(135deg, #ff4444 0%, #cc3333 100%) !important;
+  color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+.signal-label {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.signal-price {
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
+.signal-price.target {
+  color: #00ff88 !important;
+}
+
+.signal-price.stop {
+  color: #ff4444 !important;
+}
+
+.confluence-progress .MuiLinearProgress-bar {
+  background: linear-gradient(90deg, #ff4444 0%, #ffaa00 50%, #00ff88 100%) !important;
+}
+
+.confluence-score {
+  color: #00ffff !important;
+  font-weight: bold !important;
+}
+
+.strength-chip.high {
+  background: rgba(0, 255, 136, 0.2) !important;
+  color: #00ff88 !important;
+  border: 1px solid rgba(0, 255, 136, 0.4) !important;
+}
+
+.strength-chip.medium {
+  background: rgba(255, 170, 0, 0.2) !important;
+  color: #ffaa00 !important;
+  border: 1px solid rgba(255, 170, 0, 0.4) !important;
+}
+
+.strength-chip.low {
+  background: rgba(255, 68, 68, 0.2) !important;
+  color: #ff4444 !important;
+  border: 1px solid rgba(255, 68, 68, 0.4) !important;
+}
+
+.analysis-chip {
+  background: rgba(0, 255, 255, 0.1) !important;
+  color: #00ffff !important;
+  border: 1px solid rgba(0, 255, 255, 0.3) !important;
+  font-size: 0.7rem !important;
+}
+
+.execute-button {
+  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%) !important;
+  color: #000000 !important;
+  font-weight: bold !important;
+  text-transform: none !important;
+}
+
+.watch-button {
+  border: 2px solid rgba(255, 170, 0, 0.5) !important;
+  color: #ffaa00 !important;
+  background: rgba(255, 170, 0, 0.1) !important;
+  text-transform: none !important;
+}
+
+/* AI Analysis Button */
+.ai-analysis-button {
+  background: linear-gradient(135deg, #ff00ff 0%, #cc00cc 100%) !important;
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-transform: none !important;
+  box-shadow: 0 4px 15px rgba(255, 0, 255, 0.3) !important;
+}
+
+.ai-analysis-button:hover {
+  box-shadow: 0 6px 20px rgba(255, 0, 255, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+/* Analysis Tool Cards */
+.analysis-tool-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  transition: all 0.3s ease !important;
+  text-align: center;
+}
+
+.analysis-tool-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 30px rgba(0, 255, 255, 0.2) !important;
+  border-color: rgba(0, 255, 255, 0.4) !important;
+}
+
+.tool-icon {
+  width: 80px !important;
+  height: 80px !important;
+  margin: 0 auto !important;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.2) 0%, rgba(255, 0, 255, 0.2) 100%) !important;
+  border: 2px solid rgba(0, 255, 255, 0.3) !important;
+  backdrop-filter: blur(10px);
+}
+
+.tool-icon.elliott {
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.2) 0%, rgba(0, 200, 100, 0.2) 100%) !important;
+  border-color: rgba(0, 255, 136, 0.4) !important;
+  color: #00ff88 !important;
+}
+
+.tool-icon.fibonacci {
+  background: linear-gradient(135deg, rgba(255, 170, 0, 0.2) 0%, rgba(255, 200, 0, 0.2) 100%) !important;
+  border-color: rgba(255, 170, 0, 0.4) !important;
+  color: #ffaa00 !important;
+}
+
+.tool-icon.patterns {
+  background: linear-gradient(135deg, rgba(255, 0, 255, 0.2) 0%, rgba(200, 0, 255, 0.2) 100%) !important;
+  border-color: rgba(255, 0, 255, 0.4) !important;
+  color: #ff00ff !important;
+}
+
+.tool-icon.support {
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.2) 0%, rgba(0, 200, 255, 0.2) 100%) !important;
+  border-color: rgba(0, 255, 255, 0.4) !important;
+  color: #00ffff !important;
+}
+
+.tool-icon.confluence {
+  background: linear-gradient(135deg, rgba(255, 68, 68, 0.2) 0%, rgba(255, 100, 100, 0.2) 100%) !important;
+  border-color: rgba(255, 68, 68, 0.4) !important;
+  color: #ff4444 !important;
+}
+
+.tool-icon.risk {
+  background: linear-gradient(135deg, rgba(136, 136, 136, 0.2) 0%, rgba(200, 200, 200, 0.2) 100%) !important;
+  border-color: rgba(136, 136, 136, 0.4) !important;
+  color: #888888 !important;
+}
+
+.tool-button {
+  background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%) !important;
+  color: #000000 !important;
+  font-weight: bold !important;
+  text-transform: none !important;
+  border-radius: 8px !important;
+}
+
+/* Stats Cards */
+.stats-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.stat-item {
+  text-align: center;
+  padding: 16px;
+  background: rgba(0, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.stat-item .MuiTypography-caption {
+  color: rgba(255, 255, 255, 0.7) !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-item .MuiTypography-h5 {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.timeframe-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.timeframe-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(0, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.timeframe-progress {
+  flex: 1;
+  height: 8px !important;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.timeframe-progress .MuiLinearProgress-bar {
+  background: linear-gradient(90deg, #ff4444 0%, #ffaa00 50%, #00ff88 100%) !important;
+  border-radius: 4px;
+}
+
+/* Config Cards */
+.config-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+}
+
+.config-options .MuiFormControl-root .MuiOutlinedInput-root {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+}
+
+.config-options .MuiFormControl-root .MuiOutlinedInput-root fieldset {
+  border-color: rgba(0, 255, 255, 0.3) !important;
+}
+
+.config-options .MuiFormControl-root .MuiInputLabel-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.config-options .MuiFormControl-root .MuiOutlinedInput-input {
+  color: #ffffff !important;
+}
+
+.notification-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: rgba(0, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 255, 255, 0.2);
+}
+
+.setting-item .MuiTypography-body2 {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.setting-item .MuiButton-root {
+  border-color: rgba(0, 255, 255, 0.3) !important;
+  color: #00ffff !important;
+  background: rgba(0, 255, 255, 0.1) !important;
+  text-transform: none !important;
+  font-size: 0.75rem !important;
+}
+
+/* Floating Action Button */
+.floating-action-button {
+  background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%) !important;
+  color: #000000 !important;
+  box-shadow: 0 8px 25px rgba(0, 255, 255, 0.4), 0 0 30px rgba(0, 255, 255, 0.2) !important;
+  transition: all 0.3s ease !important;
+}
+
+.floating-action-button:hover {
+  background: linear-gradient(135deg, #00e6e6 0%, #e600e6 100%) !important;
+  box-shadow: 0 12px 35px rgba(0, 255, 255, 0.6), 0 0 50px rgba(0, 255, 255, 0.3) !important;
+  transform: scale(1.1);
+}
+
+/* Dialog Styles */
+.tutorial-dialog .MuiDialog-paper,
+.ai-dialog .MuiDialog-paper {
+  background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(15, 15, 15, 0.95) 100%) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.3) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 255, 255, 0.1) !important;
+}
+
+.dialog-title {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(135deg, #ffffff 0%, #00ffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex !important;
+  align-items: center !important;
+  border-bottom: 1px solid rgba(0, 255, 255, 0.2) !important;
+}
+
+.dialog-content {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.dialog-content .MuiTextField-root .MuiOutlinedInput-root {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+}
+
+.dialog-content .MuiTextField-root .MuiOutlinedInput-root fieldset {
+  border-color: rgba(0, 255, 255, 0.3) !important;
+}
+
+.dialog-content .MuiTextField-root .MuiInputLabel-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.dialog-content .MuiTextField-root .MuiOutlinedInput-input {
+  color: #ffffff !important;
+}
+
+.dialog-button {
+  background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%) !important;
+  color: #000000 !important;
+  font-weight: bold !important;
+  text-transform: none !important;
+  border-radius: 8px !important;
+}
+
+.dialog-button-secondary {
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  text-transform: none !important;
+  border-radius: 8px !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 20px 0;
+  }
+  
+  .tab-content {
+    padding: 16px;
+  }
+  
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .floating-action-button {
+    bottom: 16px !important;
+    right: 16px !important;
+  }
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.summary-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+  transition: left 0.5s;
+  pointer-events: none;
+}
+
+.summary-card:hover::after {
+  left: 100%;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #00e6e6 0%, #e600e6 100%);
+}

@@ -61,8 +61,8 @@ def create_refresh_token(data: dict):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_user_by_username(username: str) -> Optional[User]:
-    user_data = await db_manager.find_one("users", {"username": username})
+async def get_user_by_email(email: str) -> Optional[User]:
+    user_data = await db_manager.find_one("users", {"email": email})
     if user_data:
         user_data["_id"] = str(user_data["_id"])  # <- Solución aquí
         return User(**user_data)
@@ -81,9 +81,9 @@ async def get_user_by_id(user_id: str) -> Optional[User]:
     return None
 
 
-async def authenticate_user(username: str, password: str) -> Optional[User]:
+async def authenticate_user(email: str, password: str) -> Optional[User]:
     """Autenticar usuario"""
-    user = await get_user_by_username(username)
+    user = await get_user_by_email(email)
     if not user:
         return None
     if not verify_password(password, user.password_hash):
@@ -100,14 +100,14 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
     
     try:
         payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
+        email: str = payload.get("sub")
         user_id: str = payload.get("user_id")
         token_type: str = payload.get("type")
         
-        if username is None or user_id is None or token_type != "access":
+        if email is None or user_id is None or token_type != "access":
             raise credentials_exception
             
-        token_data = TokenData(username=username, user_id=user_id)
+        token_data = TokenData(email=email, user_id=user_id)
     except JWTError:
         raise credentials_exception
     
@@ -134,7 +134,7 @@ async def get_current_active_user(current_user: User = Depends(get_current_user)
 async def register(user_data: UserRegister):
     """Registrar nuevo usuario"""
     # Verificar si el usuario ya existe
-    existing_user = await get_user_by_username(user_data.username)
+    existing_user = await get_user_by_email(user_data.username)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -176,22 +176,22 @@ async def register(user_data: UserRegister):
 @router.post("/login", response_model=Token)
 async def login(user_credentials: UserLogin):
     """Iniciar sesión"""
-    user = await authenticate_user(user_credentials.username, user_credentials.password)
+    user = await authenticate_user(user_credentials.email, user_credentials.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
     # Crear tokens
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.username, "user_id": str(user.id)},
+        data={"sub": user.email, "user_id": str(user.id)},
         expires_delta=access_token_expires
     )
     refresh_token = create_refresh_token(
-        data={"sub": user.username, "user_id": str(user.id)}
+        data={"sub": user.email, "user_id": str(user.id)}
     )
     
     return Token(
