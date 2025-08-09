@@ -1,0 +1,948 @@
+/* Charts Container */
+.charts-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 50%, #0f0f0f 100%);
+  padding: 40px 0;
+  position: relative;
+}
+
+/* Mejorar el contenedor principal */
+.charts-container .MuiContainer-root {
+  max-width: 1600px !important;
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+
+/* Charts Container */
+.charts-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 20% 30%, rgba(0, 255, 255, 0.08) 0%, transparent 50%),
+              radial-gradient(circle at 80% 70%, rgba(255, 0, 255, 0.08) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+/* Charts Title */
+.charts-title {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(135deg, #ffffff 0%, #00ffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+  z-index: 1;
+}
+
+.charts-subtitle {
+  color: rgba(255, 255, 255, 0.7) !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+/* Controls Card */
+.controls-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Controles principales - mejor distribución */
+.controls-card .MuiGrid-container {
+  justify-content: center;
+  align-items: center;
+}
+
+.controls-card .MuiGrid-item {
+  display: flex;
+  justify-content: center;
+}
+
+.controls-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.02) 0%, rgba(255, 0, 255, 0.02) 100%);
+  pointer-events: none;
+}
+
+/* Form Controls */
+.pair-select .MuiOutlinedInput-root,
+.timeframe-select .MuiOutlinedInput-root,
+.chart-type-select .MuiOutlinedInput-root {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.pair-select .MuiOutlinedInput-root fieldset,
+.timeframe-select .MuiOutlinedInput-root fieldset,
+.chart-type-select .MuiOutlinedInput-root fieldset {
+  border-color: rgba(0, 255, 255, 0.3) !important;
+}
+
+.pair-select .MuiOutlinedInput-root:hover fieldset,
+.timeframe-select .MuiOutlinedInput-root:hover fieldset,
+.chart-type-select .MuiOutlinedInput-root:hover fieldset {
+  border-color: rgba(0, 255, 255, 0.5) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+}
+
+.pair-select .MuiInputLabel-root,
+.timeframe-select .MuiInputLabel-root,
+.chart-type-select .MuiInputLabel-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.pair-select .MuiOutlinedInput-input,
+.timeframe-select .MuiOutlinedInput-input,
+.chart-type-select .MuiOutlinedInput-input {
+  color: #ffffff !important;
+}
+
+/* Buttons */
+.analyze-button {
+  background: linear-gradient(135deg, #ff00ff 0%, #cc00cc 100%) !important;
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-transform: none !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 15px rgba(255, 0, 255, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.analyze-button:hover {
+  background: linear-gradient(135deg, #e600e6 0%, #b300b3 100%) !important;
+  box-shadow: 0 6px 20px rgba(255, 0, 255, 0.4) !important;
+  transform: translateY(-1px);
+}
+
+.analyze-button:disabled {
+  background: linear-gradient(135deg, rgba(255, 0, 255, 0.3) 0%, rgba(204, 0, 204, 0.3) 100%) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: none !important;
+}
+
+.refresh-button {
+  border: 2px solid rgba(0, 255, 255, 0.3) !important;
+  color: #00ffff !important;
+  background: rgba(0, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+}
+
+.refresh-button:hover {
+  border-color: #00ffff !important;
+  background: rgba(0, 255, 255, 0.1) !important;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+/* Realtime Toggle */
+.realtime-toggle {
+  background: rgba(0, 255, 255, 0.1) !important;
+  color: #00ffff !important;
+  border: 1px solid rgba(0, 255, 255, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.realtime-toggle.active {
+  background: linear-gradient(135deg, #00ff88 0%, #00cc66 100%) !important;
+  color: #000000 !important;
+  box-shadow: 0 0 20px rgba(0, 255, 136, 0.4);
+}
+
+.realtime-toggle:hover {
+  background: rgba(0, 255, 255, 0.2) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+.settings-button {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  transition: all 0.3s ease !important;
+}
+
+.settings-button:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+/* Sidebar Cards */
+.watchlist-card,
+.signals-card,
+.indicators-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+.watchlist-card::before,
+.signals-card::before,
+.indicators-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.02) 0%, rgba(255, 0, 255, 0.02) 100%);
+  pointer-events: none;
+}
+
+.section-title {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+/* Watchlist Items */
+.watchlist-item {
+  border: 1px solid rgba(0, 255, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(0, 255, 255, 0.05) !important;
+  border-radius: 8px !important;
+  transition: all 0.3s ease !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  width: 100%;
+  margin-bottom: 8px;
+  justify-content: flex-start;
+  padding: 12px 16px;
+  font-size: 0.95rem;
+}
+
+.watchlist-item:hover {
+  border-color: rgba(0, 255, 255, 0.5) !important;
+  background: rgba(0, 255, 255, 0.1) !important;
+  color: #00ffff !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+}
+
+.watchlist-item.active {
+  background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%) !important;
+  color: #000000 !important;
+  border-color: transparent !important;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+}
+
+/* Signal Items */
+.signal-item {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(0, 255, 255, 0.15) !important;
+  border-radius: 12px !important;
+  transition: all 0.3s ease !important;
+  margin-bottom: 12px;
+}
+
+.signal-item:hover {
+  background: rgba(0, 255, 255, 0.05) !important;
+  border-color: rgba(0, 255, 255, 0.3) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.1);
+}
+
+.signal-symbol {
+  color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+.signal-type-chip {
+  font-weight: bold !important;
+  font-size: 0.7rem !important;
+}
+
+.signals-count {
+  background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%) !important;
+  color: #000000 !important;
+  font-weight: bold !important;
+}
+
+/* Indicator Switches */
+.indicator-item {
+  margin-bottom: 8px;
+  width: 100%;
+}
+
+.indicator-item .MuiFormControlLabel-label {
+  color: rgba(255, 255, 255, 0.8) !important;
+  font-weight: 600 !important;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex: 1;
+}
+
+.indicator-switch .MuiSwitch-switchBase.Mui-checked {
+  color: #00ffff !important;
+}
+
+.indicator-switch .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track {
+  background-color: rgba(0, 255, 255, 0.5) !important;
+}
+
+.indicator-switch .MuiSwitch-track {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* Chart Card */
+.chart-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+  backdrop-filter: blur(15px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.2) !important;
+  border-radius: 16px !important;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-height: 600px;
+}
+
+.chart-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0, 255, 255, 0.02) 0%, rgba(255, 0, 255, 0.02) 100%);
+  pointer-events: none;
+}
+
+.chart-title {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
+.fullscreen-button {
+  background: rgba(0, 255, 255, 0.1) !important;
+  color: #00ffff !important;
+  border: 1px solid rgba(0, 255, 255, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.fullscreen-button:hover {
+  background: rgba(0, 255, 255, 0.2) !important;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  color: #00ffff !important;
+  filter: drop-shadow(0 0 10px rgba(0, 255, 255, 0.5));
+}
+
+/* Floating AI Button */
+.floating-ai-button {
+  background: linear-gradient(135deg, #ff00ff 0%, #cc00cc 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 8px 25px rgba(255, 0, 255, 0.4), 0 0 30px rgba(255, 0, 255, 0.2) !important;
+  transition: all 0.3s ease !important;
+}
+
+.floating-ai-button:hover {
+  background: linear-gradient(135deg, #e600e6 0%, #b300b3 100%) !important;
+  box-shadow: 0 12px 35px rgba(255, 0, 255, 0.6), 0 0 50px rgba(255, 0, 255, 0.3) !important;
+  transform: scale(1.1);
+}
+
+.floating-ai-button:disabled {
+  background: linear-gradient(135deg, rgba(255, 0, 255, 0.3) 0%, rgba(204, 0, 204, 0.3) 100%) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: none !important;
+}
+
+/* Settings Dialog */
+.settings-dialog .MuiDialog-paper {
+  background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(15, 15, 15, 0.95) 100%) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.3) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(0, 255, 255, 0.1) !important;
+}
+
+.dialog-title {
+  color: #ffffff !important;
+  font-weight: bold !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  background: linear-gradient(135deg, #ffffff 0%, #00ffff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: flex !important;
+  align-items: center !important;
+  border-bottom: 1px solid rgba(0, 255, 255, 0.2) !important;
+}
+
+.dialog-content {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.dialog-content .MuiTextField-root .MuiOutlinedInput-root,
+.dialog-content .MuiFormControl-root .MuiOutlinedInput-root {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+}
+
+.dialog-content .MuiTextField-root .MuiOutlinedInput-root fieldset,
+.dialog-content .MuiFormControl-root .MuiOutlinedInput-root fieldset {
+  border-color: rgba(0, 255, 255, 0.3) !important;
+}
+
+.dialog-content .MuiTextField-root .MuiInputLabel-root,
+.dialog-content .MuiFormControl-root .MuiInputLabel-root {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+.dialog-content .MuiTextField-root .MuiOutlinedInput-input,
+.dialog-content .MuiFormControl-root .MuiOutlinedInput-input {
+  color: #ffffff !important;
+}
+
+.dialog-content .MuiFormControlLabel-label {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.dialog-button {
+  background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%) !important;
+  color: #000000 !important;
+  font-weight: bold !important;
+  text-transform: none !important;
+  border-radius: 8px !important;
+}
+
+.dialog-button-secondary {
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  color: rgba(255, 255, 255, 0.8) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  text-transform: none !important;
+  border-radius: 8px !important;
+}
+
+/* Custom Alert */
+.custom-alert {
+  background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(15, 15, 15, 0.95) 100%) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(0, 255, 255, 0.3) !important;
+  border-radius: 12px !important;
+  color: #ffffff !important;
+}
+
+.custom-alert .MuiAlert-icon {
+  color: #00ffff !important;
+}
+
+/* Custom Tooltip */
+.custom-tooltip {
+  background: rgba(0, 0, 0, 0.9) !important;
+  border: 1px solid rgba(0, 255, 255, 0.3) !important;
+  border-radius: 8px !important;
+  padding: 12px !important;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3), 0 0 20px rgba(0, 255, 255, 0.1) !important;
+}
+
+.tooltip-title {
+  color: #00ffff !important;
+  font-weight: bold !important;
+  margin-bottom: 8px !important;
+  font-size: 0.9rem !important;
+}
+
+.tooltip-item {
+  color: rgba(255, 255, 255, 0.9) !important;
+  margin: 4px 0 !important;
+  font-size: 0.8rem !important;
+}
+
+/* Recharts customization */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: rgba(0, 255, 255, 0.1) !important;
+}
+
+.recharts-legend-wrapper {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.recharts-default-legend .recharts-legend-item-text {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .charts-container {
+    padding: 20px 0;
+  }
+  
+  .floating-ai-button {
+    bottom: 16px !important;
+    right: 16px !important;
+  }
+
+  /* Responsive chart adjustments */
+  .recharts-wrapper {
+    font-size: 10px !important;
+  }
+  
+  .custom-tooltip {
+    padding: 8px !important;
+  }
+  
+  .tooltip-title {
+    font-size: 0.8rem !important;
+  }
+  
+  .tooltip-item {
+    font-size: 0.7rem !important;
+  }
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.controls-card::after,
+.chart-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.1), transparent);
+  transition: left 0.5s;
+  pointer-events: none;
+}
+
+.controls-card:hover::after,
+.chart-card:hover::after {
+  left: 100%;
+}
+
+/* Chart.js Custom Styles */
+.chart-card canvas {
+  border-radius: 12px;
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #00ffff 0%, #ff00ff 100%);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #00e6e6 0%, #e600e6 100%);
+}
+
+/* Mejoras de responsividad y centrado para pantallas grandes */
+
+/* Grid principal - mejor distribución */
+.main-grid-container {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+/* Panel lateral - ancho fijo optimizado */
+.sidebar-panel {
+  flex: 0 0 320px;
+  min-width: 320px;
+}
+
+/* Panel del gráfico - aprovecha el resto del espacio */
+.chart-panel {
+  flex: 1;
+  min-width: 0; /* Permite que se encoja si es necesario */
+}
+
+/* Form controls - tamaños más apropiados para desktop */
+@media (min-width: 1200px) {
+  .pair-select,
+  .timeframe-select,
+  .chart-type-select {
+    min-width: 180px;
+  }
+  
+  .analyze-button,
+  .refresh-button {
+    min-width: 160px;
+    height: 56px;
+  }
+}
+
+/* Signal items - optimización del espacio */
+.signal-item .MuiCardContent-root {
+  padding: 16px !important;
+}
+
+/* Responsive breakpoints mejorados */
+
+/* Tablets grandes y laptops pequeños */
+@media (min-width: 768px) and (max-width: 1199px) {
+  .charts-container .MuiContainer-root {
+    max-width: 1140px !important;
+  }
+  
+  .main-grid-container {
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .sidebar-panel {
+    flex: none;
+    width: 100%;
+    max-width: none;
+  }
+  
+  .chart-panel {
+    width: 100%;
+  }
+  
+  /* Sidebar horizontal en tablets */
+  .sidebar-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+  }
+}
+
+/* Pantallas grandes - layout optimizado */
+@media (min-width: 1200px) {
+  .charts-container {
+    padding: 60px 0;
+  }
+  
+  .charts-container .MuiContainer-root {
+    max-width: 1400px !important;
+  }
+  
+  .main-grid-container {
+    gap: 32px;
+  }
+  
+  .sidebar-panel {
+    flex: 0 0 350px;
+    min-width: 350px;
+  }
+  
+  /* Chart más grande en pantallas grandes */
+  .chart-card {
+    min-height: 650px;
+  }
+  
+  /* Controles más espaciados */
+  .controls-card .MuiGrid-container {
+    gap: 16px;
+  }
+}
+
+/* Pantallas extra grandes */
+@media (min-width: 1600px) {
+  .charts-container .MuiContainer-root {
+    max-width: 1600px !important;
+    padding-left: 40px !important;
+    padding-right: 40px !important;
+  }
+  
+  .main-grid-container {
+    gap: 40px;
+  }
+  
+  .sidebar-panel {
+    flex: 0 0 380px;
+    min-width: 380px;
+  }
+  
+  .chart-card {
+    min-height: 750px;
+  }
+  
+  /* Elementos más grandes para pantallas grandes */
+  .watchlist-item {
+    padding: 14px 18px;
+    font-size: 1rem;
+  }
+  
+  .signal-item .MuiCardContent-root {
+    padding: 20px !important;
+  }
+  
+  .section-title {
+    font-size: 1.3rem !important;
+  }
+}
+
+/* Móviles - mantener el diseño actual */
+@media (max-width: 767px) {
+  .charts-container {
+    padding: 20px 0;
+  }
+  
+  .main-grid-container {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .sidebar-panel,
+  .chart-panel {
+    width: 100%;
+    flex: none;
+  }
+  
+  .sidebar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .controls-card .MuiGrid-container {
+    gap: 12px;
+  }
+  
+  .pair-select,
+  .timeframe-select,
+  .chart-type-select,
+  .analyze-button,
+  .refresh-button {
+    min-width: auto;
+    width: 100%;
+  }
+}
+
+/* Mejoras adicionales para el centrado */
+.controls-card .MuiCardContent-root {
+  padding: 24px !important;
+}
+
+@media (min-width: 1200px) {
+  .controls-card .MuiCardContent-root {
+    padding: 32px !important;
+  }
+}
+
+/* Header mejorado */
+.charts-header {
+  margin-bottom: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+@media (min-width: 1200px) {
+  .charts-header {
+    margin-bottom: 40px;
+  }
+}
+
+/* Floating button - posición mejorada */
+@media (min-width: 1200px) {
+  .floating-ai-button {
+    bottom: 32px !important;
+    right: 32px !important;
+    width: 64px !important;
+    height: 64px !important;
+  }
+}
+
+
+/* ✅ NUEVAS: Animaciones para tiempo real */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+  }
+}
+
+/* Estilos para indicadores de tiempo real */
+.realtime-indicator {
+  animation: pulse 2s infinite;
+}
+
+.live-price {
+  animation: glow 3s infinite;
+}
+
+/* Estilos para el gráfico */
+.chart-container {
+  position: relative;
+  height: 600px;
+  width: 100%;
+}
+
+/* Estilos para conexión */
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.connection-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.connection-excellent {
+  background-color: #00ff88;
+}
+
+.connection-good {
+  background-color: #00ffff;
+}
+
+.connection-poor {
+  background-color: #ffaa00;
+}
+
+.connection-disconnected {
+  background-color: #ff4444;
+}
+
+/* Estilos para datos frescos */
+.data-fresh {
+  color: #00ff88;
+  animation: pulse 2s infinite;
+}
+
+.data-recent {
+  color: #ffaa00;
+}
+
+.data-stale {
+  color: #ff4444;
+}
+
+.data-simulated {
+  color: #9c27b0;
+}
+
+/* Estilos para latencia */
+.latency-excellent {
+  color: #00ff88;
+}
+
+.latency-good {
+  color: #00ffff;
+}
+
+.latency-poor {
+  color: #ffaa00;
+}
+
+.latency-critical {
+  color: #ff4444;
+}
+
+/* Estilos para el panel de estado */
+.realtime-status-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+/* Estilos para chips de precio */
+.price-chip {
+  font-size: 10px;
+  height: 16px;
+  margin-left: 4px;
+}
+
+.price-chip-live {
+  background-color: #00ff88;
+  color: #000000;
+  animation: pulse 2s infinite;
+}
+
+.price-chip-recent {
+  background-color: #ffaa00;
+  color: #000000;
+}
+
+.price-chip-simulated {
+  background-color: #9c27b0;
+  color: #ffffff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .chart-container {
+    height: 400px;
+  }
+  
+  .realtime-status-panel {
+    padding: 12px;
+  }
+}
+
+/* Scrollbar personalizado */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 255, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 255, 0.8);
+}

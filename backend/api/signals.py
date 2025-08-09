@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse  # AGREGAR ESTA LÍNEA
 from typing import List, Dict, Optional
 import asyncio
 import json
@@ -13,6 +14,7 @@ from mt5.data_provider import MT5DataProvider
 from ai.confluence_detector import ConfluenceDetector
 from api.auth import get_current_user
 from database.models import SignalType
+from bson import ObjectId
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -101,11 +103,13 @@ async def get_recent_signals(user_id: str, pair: str = None) -> List[Dict]:
             
         signals = await db.trading_signals.find(filter_dict).sort("timestamp", -1).limit(20).to_list(length=20)
         
-        # Convertir ObjectId a string
+        # Convertir ObjectId a string usando la función mejorada
+        cleaned_signals = []
         for signal in signals:
-            signal["_id"] = str(signal["_id"])
+            cleaned_signal = prepare_for_json(signal)
+            cleaned_signals.append(cleaned_signal)
             
-        return signals
+        return cleaned_signals
         
     except Exception as e:
         logger.error(f"Error obteniendo señales recientes: {e}")
@@ -136,6 +140,7 @@ async def handle_websocket_command(command: Dict, user_id: str):
             user_id
         )
 
+# ENDPOINT CORREGIDO - Usa JSONResponse directamente
 @router.get("/signals/")
 async def get_signals(
     pair: Optional[str] = None,
@@ -158,39 +163,86 @@ async def get_signals(
         # Obtener señales
         signals = await collection.find(filter_dict).sort("timestamp", -1).limit(limit).to_list(length=limit)
         
-        return {
-            "signals": signals,
-            "count": len(signals)
+        # Limpiar los datos ANTES de intentar serializarlos
+        cleaned_signals = []
+        for signal in signals:
+            try:
+                cleaned_signal = prepare_for_json(signal)
+                cleaned_signals.append(cleaned_signal)
+            except Exception as e:
+                logger.warning(f"Error limpiando señal individual: {e}")
+                continue
+        
+        # Crear respuesta limpia
+        response_data = {
+            "signals": cleaned_signals,
+            "count": len(cleaned_signals),
+            "timestamp": datetime.utcnow().isoformat()
         }
         
+        # Devolver JSONResponse directamente (esto evita que FastAPI intente serializar)
+        return JSONResponse(content=response_data)
+        
     except Exception as e:
-        logger.error(f"Error obteniendo señales: {e}")
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        logger.error(f"Error obteniendo señales: {e}", exc_info=True)
+        # También devolver error como JSONResponse
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Error interno del servidor",
+                "detail": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
 
+# FUNCIÓN PREPARE_FOR_JSON MEJORADA
 def prepare_for_json(data):
     """
     Prepara datos para serialización JSON convirtiendo tipos especiales.
-    Versión mejorada para manejar Timestamps de pandas y otros tipos complejos.
+    VERSIÓN MEJORADA que maneja todos los casos edge.
     """
-    if isinstance(data, (list, tuple)):
-        return [prepare_for_json(item) for item in data]
-    elif isinstance(data, dict):
-        return {key: prepare_for_json(value) for key, value in data.items()}
-    elif hasattr(data, '__dict__'):  # Para objetos
-        return prepare_for_json(data.__dict__)
-    elif isinstance(data, (np.float32, np.float64)):
-        return float(data)
-    elif isinstance(data, (np.int32, np.int64)):
-        return int(data)
-    elif isinstance(data, (datetime, pd.Timestamp)):
-        return data.isoformat()
-    elif str(type(data)) == "<class 'bson.objectid.ObjectId'>":
-        return str(data)
-    elif isinstance(data, pd.Timestamp):  # Caso específico para Timestamp
-        return data.to_pydatetime().isoformat()
-    elif data is None:
+    if data is None:
         return None
-    return data
+    elif isinstance(data, dict):
+        result = {}
+        for key, value in data.items():
+            # Convertir _id a id
+            if key == "_id":
+                if isinstance(value, ObjectId):
+                    result["id"] = str(value)
+                else:
+                    result["id"] = str(value)
+            else:
+                result[key] = prepare_for_json(value)
+        return result
+    elif isinstance(data, (list, tuple)):
+        return [prepare_for_json(item) for item in data]
+    elif isinstance(data, ObjectId):
+        return str(data)
+    elif isinstance(data, datetime):
+        return data.isoformat()
+    elif isinstance(data, pd.Timestamp):
+        return data.isoformat()
+    elif isinstance(data, (np.float32, np.float64, np.floating)):
+        return float(data)
+    elif isinstance(data, (np.int32, np.int64, np.integer)):
+        return int(data)
+    elif isinstance(data, (np.bool_)):
+        return bool(data)
+    elif hasattr(data, '__dict__'):
+        # Para objetos personalizados, convertir su __dict__
+        try:
+            return prepare_for_json(data.__dict__)
+        except:
+            return str(data)
+    else:
+        # Para cualquier otro tipo, intentar convertir a string como fallback
+        try:
+            # Verificar si es JSON serializable
+            json.dumps(data)
+            return data
+        except (TypeError, ValueError):
+            return str(data)
 
 @router.post("/signals/analyze/{pair}")
 async def analyze_pair(
@@ -243,32 +295,47 @@ async def analyze_pair(
 
             # Insertar en MongoDB
             result = await collection.insert_one(signal_doc)
-            signal_doc["_id"] = str(result.inserted_id)
+            signal_doc["_id"] = result.inserted_id
             
-            # Preparar para WebSocket
-            ws_data = prepare_for_json(signal_doc)
-            saved_signals.append(ws_data)
+            # Preparar para respuesta (limpiar ObjectIds)
+            cleaned_signal = prepare_for_json(signal_doc)
+            saved_signals.append(cleaned_signal)
 
             # Enviar notificación WebSocket
-            await manager.send_personal_message(
-                json.dumps({
-                    "type": "new_signals",
-                    "pair": pair,
-                    "signals": saved_signals
-                }),
-                current_user.id
-            )
+            try:
+                await manager.send_personal_message(
+                    json.dumps({
+                        "type": "new_signals",
+                        "pair": pair,
+                        "signals": saved_signals
+                    }),
+                    current_user.id
+                )
+            except Exception as ws_error:
+                logger.warning(f"Error enviando WebSocket: {ws_error}")
 
-        return {
+        # Devolver JSONResponse directamente
+        response_data = {
             "pair": pair,
             "timeframe": timeframe,
             "signals": saved_signals,
             "analysis_time": datetime.utcnow().isoformat()
         }
+        
+        return JSONResponse(content=response_data)
 
     except Exception as e:
         logger.error(f"Error analizando par {pair}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Error analizando par",
+                "detail": str(e),
+                "pair": pair,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+
 @router.get("/signals/pairs/")
 async def get_available_pairs(current_user: User = Depends(get_current_user)):
     """Obtiene los pares disponibles en MT5"""
@@ -277,11 +344,20 @@ async def get_available_pairs(current_user: User = Depends(get_current_user)):
             raise HTTPException(status_code=503, detail="Error conectando con MT5")
         
         pairs = mt5_provider.get_available_pairs()
-        return {"pairs": pairs}
+        
+        # Usar JSONResponse para consistencia
+        return JSONResponse(content={"pairs": pairs})
         
     except Exception as e:
         logger.error(f"Error obteniendo pares: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Error obteniendo pares",
+                "detail": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
 
 @router.post("/signals/settings/")
 async def update_signal_settings(
@@ -305,11 +381,18 @@ async def update_signal_settings(
             upsert=True
         )
         
-        return {"message": "Configuración actualizada exitosamente"}
+        return JSONResponse(content={"message": "Configuración actualizada exitosamente"})
         
     except Exception as e:
         logger.error(f"Error actualizando configuración: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Error actualizando configuración",
+                "detail": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
 
 @router.delete("/signals/{signal_id}")
 async def delete_signal(
@@ -319,22 +402,46 @@ async def delete_signal(
 ):
     """Elimina una señal específica"""
     try:
-        from bson import ObjectId
-        
         collection = db.trading_signals
+        
+        # Validar que signal_id es un ObjectId válido
+        try:
+            obj_id = ObjectId(signal_id)
+        except Exception:
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": "ID de señal inválido",
+                    "detail": f"'{signal_id}' no es un ObjectId válido"
+                }
+            )
+        
         result = await collection.delete_one({
-            "_id": ObjectId(signal_id),
+            "_id": obj_id,
             "user_id": current_user.id
         })
         
         if result.deleted_count == 0:
-            raise HTTPException(status_code=404, detail="Señal no encontrada")
+            return JSONResponse(
+                status_code=404,
+                content={
+                    "error": "Señal no encontrada",
+                    "detail": f"No se encontró señal con ID {signal_id}"
+                }
+            )
         
-        return {"message": "Señal eliminada exitosamente"}
+        return JSONResponse(content={"message": "Señal eliminada exitosamente"})
         
     except Exception as e:
         logger.error(f"Error eliminando señal: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Error eliminando señal",
+                "detail": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
 
 # Funciones auxiliares para análisis en tiempo real
 async def start_realtime_analysis(user_id: str):
@@ -400,17 +507,24 @@ async def analyze_pair_realtime(user_id: str, pair: str, timeframe: str, db):
             "status": "ACTIVE"
         }
         result = await collection.insert_one(signal_doc)
-        signal_doc["_id"] = str(result.inserted_id)
-        saved_signals.append(signal_doc)
+        signal_doc["_id"] = result.inserted_id
+        
+        # Limpiar ObjectId antes de enviar por WebSocket
+        cleaned_signal = prepare_for_json(signal_doc)
+        saved_signals.append(cleaned_signal)
     
-    await manager.send_personal_message(
-        json.dumps({
-            "type": "new_realtime_signals",
-            "pair": pair,
-            "signals": saved_signals
-        }),
-        user_id
-    )
+    # Enviar por WebSocket
+    try:
+        await manager.send_personal_message(
+            json.dumps({
+                "type": "new_realtime_signals",
+                "pair": pair,
+                "signals": saved_signals
+            }),
+            user_id
+        )
+    except Exception as ws_error:
+        logger.warning(f"Error enviando WebSocket en tiempo real: {ws_error}")
 
 async def get_user_settings(user_id: str, db):
     """Obtiene la configuración del usuario"""

@@ -123,9 +123,12 @@ def start_backend():
         import uvicorn
         from config import settings
         
+        # Fix para Windows: usar 127.0.0.1 en lugar de 0.0.0.0
+        host = "127.0.0.1" if settings.host == "0.0.0.0" else settings.host
+        
         uvicorn.run(
             "main:app",
-            host=settings.host,
+            host=host,
             port=settings.port,
             reload=settings.debug,
             log_level=settings.log_level.lower(),
