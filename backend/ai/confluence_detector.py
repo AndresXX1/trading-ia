@@ -27,7 +27,7 @@ class ConfluenceDetector:
         self.fibonacci_analyzer = FibonacciAnalyzer()
         self.logger = logging.getLogger(__name__)
         
-        # Configuración de pesos para diferentes análisis
+        # Configuración de pesos para diferentes análisis (por defecto)
         self.analysis_weights = {
             AnalysisType.ELLIOTT_WAVE: 0.25,
             AnalysisType.CHART_PATTERN: 0.30,
@@ -35,28 +35,44 @@ class ConfluenceDetector:
             AnalysisType.SUPPORT_RESISTANCE: 0.20
         }
         
-        # Umbral mínimo de confluencia para generar señal
+        # Umbral mínimo de confluencia para generar señal (por defecto)
         self.min_confluence_score = 0.6
     
     async def analyze_symbol(self, 
                            symbol: str, 
                            df: pd.DataFrame, 
-                           timeframe: str) -> Optional[Signal]:
+                           timeframe: str,
+                           config=None) -> Optional[Signal]:
         """
-        Análisis completo de un símbolo para detectar señales
+        Análisis completo de un símbolo para detectar señales con configuración personalizada
         """
         try:
+            # ✅ NUEVO: Usar configuración personalizada si se proporciona
+            if config:
+                min_confluence_score = config.confluence_threshold
+                # Actualizar pesos si están en la configuración
+                analysis_weights = {
+                    AnalysisType.ELLIOTT_WAVE: config.elliott_wave_weight,
+                    AnalysisType.CHART_PATTERN: config.chart_patterns_weight,
+                    AnalysisType.FIBONACCI: config.fibonacci_weight,
+                    AnalysisType.SUPPORT_RESISTANCE: config.support_resistance_weight
+                }
+                self.logger.info(f"Usando configuración personalizada: confluencia={min_confluence_score}")
+            else:
+                min_confluence_score = self.min_confluence_score
+                analysis_weights = self.analysis_weights
+            
             self.logger.info(f"Analizando {symbol} en {timeframe}")
             
-            # Realizar todos los análisis técnicos
-            analyses = await self._perform_all_analyses(df, symbol, timeframe)
+            # ✅ MODIFICADO: Realizar análisis filtrados según configuración
+            analyses = await self._perform_filtered_analyses(df, symbol, timeframe, config)
             
             if not analyses:
                 self.logger.info(f"No se encontraron análisis válidos para {symbol}")
                 return None
             
-            # Detectar confluencias
-            confluences = await self.detect_confluence_signals(analyses, df)
+            # Detectar confluencias con pesos personalizados
+            confluences = await self._detect_confluence_signals_with_weights(analyses, df, analysis_weights)
             
             if not confluences:
                 self.logger.info(f"No se detectaron confluencias para {symbol}")
@@ -65,13 +81,13 @@ class ConfluenceDetector:
             # Evaluar la mejor confluencia
             best_confluence = max(confluences, key=lambda x: x.strength)
             
-            if best_confluence.strength < self.min_confluence_score:
-                self.logger.info(f"Confluencia insuficiente para {symbol}: {best_confluence.strength:.2f}")
+            if best_confluence.strength < min_confluence_score:
+                self.logger.info(f"Confluencia insuficiente para {symbol}: {best_confluence.strength:.2f} < {min_confluence_score}")
                 return None
             
-            # Generar señal
-            signal = await self._generate_signal(
-                symbol, timeframe, df, best_confluence, analyses
+            # ✅ MODIFICADO: Generar señal con configuración
+            signal = await self._generate_signal_with_config(
+                symbol, timeframe, df, best_confluence, analyses, config
             )
             
             self.logger.info(f"Señal generada para {symbol}: {signal.signal_type} con confluencia {signal.confluence_score:.2f}")
@@ -81,87 +97,93 @@ class ConfluenceDetector:
             self.logger.error(f"Error analizando {symbol}: {e}")
             return None
     
-    async def _perform_all_analyses(self, 
-                                  df: pd.DataFrame, 
-                                  symbol: str, 
-                                  timeframe: str) -> List[TechnicalAnalysis]:
-        """Realizar todos los análisis técnicos"""
+    async def _perform_filtered_analyses(self, 
+                                       df: pd.DataFrame, 
+                                       symbol: str, 
+                                       timeframe: str,
+                                       config=None) -> List[TechnicalAnalysis]:
+        """Realizar análisis técnicos filtrados según configuración"""
         analyses = []
         
-        try:
-            # Análisis de ondas de Elliott
-            elliott_result = await self.elliott_analyzer.analyze(df)
-            if elliott_result:
-                # ✅ CORRECCIÓN: Asegurar que description no sea None
-                description = elliott_result.get('description', 'Análisis Elliott Wave')
-                if description is None:
-                    description = 'Análisis Elliott Wave'
-                    
-                analyses.append(TechnicalAnalysis(
-                    type=AnalysisType.ELLIOTT_WAVE,
-                    confidence=elliott_result.get('confidence', 0.5),
-                    data=elliott_result,
-                    description=description
-                ))
-        except Exception as e:
-            self.logger.warning(f"Error en análisis Elliott Wave: {e}")
+        # ✅ NUEVO: Verificar qué análisis están habilitados
+        enable_elliott = config.enable_elliott_wave if config else True
+        enable_fibonacci = config.enable_fibonacci if config else True
+        enable_patterns = config.enable_chart_patterns if config else True
+        enable_sr = config.enable_support_resistance if config else True
         
-        try:
-            # ✅ CORRECCIÓN: Pasar timeframe a detect_patterns
-            pattern_results = await self.pattern_detector.detect_patterns(df, timeframe)
-            for pattern in pattern_results:
-                # ✅ CORRECCIÓN: Asegurar que description no sea None
-                description = pattern.get('description', 'Patrón chartista detectado')
-                if description is None:
-                    description = 'Patrón chartista detectado'
-                    
-                analyses.append(TechnicalAnalysis(
-                    type=AnalysisType.CHART_PATTERN,
-                    confidence=pattern.get('confidence', 0.5),
-                    data=pattern,
-                    description=description
-                ))
-        except Exception as e:
-            self.logger.warning(f"Error en análisis de patrones: {e}")
+        # Análisis de ondas de Elliott
+        if enable_elliott:
+            try:
+                elliott_result = await self.elliott_analyzer.analyze(df)
+                if elliott_result:
+                    description = elliott_result.get('description', 'Análisis Elliott Wave')
+                    if description is None:
+                        description = 'Análisis Elliott Wave'
+                        
+                    analyses.append(TechnicalAnalysis(
+                        type=AnalysisType.ELLIOTT_WAVE,
+                        confidence=elliott_result.get('confidence', 0.5),
+                        data=elliott_result,
+                        description=description
+                    ))
+            except Exception as e:
+                self.logger.warning(f"Error en análisis Elliott Wave: {e}")
         
-        try:
-            # ✅ CORRECCIÓN: Usar el método correcto de FibonacciAnalyzer
-            # Verificar si tiene método analyze, si no, usar otro método disponible
-            if hasattr(self.fibonacci_analyzer, 'analyze'):
-                fib_result = await self.fibonacci_analyzer.analyze(df)
-            elif hasattr(self.fibonacci_analyzer, 'calculate_levels'):
-                fib_result = await self.fibonacci_analyzer.calculate_levels(df)
-            else:
-                # Crear un análisis básico de Fibonacci
-                fib_result = await self._basic_fibonacci_analysis(df)
-                
-            if fib_result:
-                # ✅ CORRECCIÓN: Asegurar que description no sea None
-                description = fib_result.get('description', 'Análisis Fibonacci')
-                if description is None:
-                    description = 'Análisis Fibonacci'
-                    
-                analyses.append(TechnicalAnalysis(
-                    type=AnalysisType.FIBONACCI,
-                    confidence=fib_result.get('confidence', 0.5),
-                    data=fib_result,
-                    description=description
-                ))
-        except Exception as e:
-            self.logger.warning(f"Error en análisis Fibonacci: {e}")
+        # Análisis de patrones
+        if enable_patterns:
+            try:
+                pattern_results = await self.pattern_detector.detect_patterns(df, timeframe)
+                for pattern in pattern_results:
+                    description = pattern.get('description', 'Patrón chartista detectado')
+                    if description is None:
+                        description = 'Patrón chartista detectado'
+                        
+                    analyses.append(TechnicalAnalysis(
+                        type=AnalysisType.CHART_PATTERN,
+                        confidence=pattern.get('confidence', 0.5),
+                        data=pattern,
+                        description=description
+                    ))
+            except Exception as e:
+                self.logger.warning(f"Error en análisis de patrones: {e}")
         
-        try:
-            # Análisis de soporte y resistencia
-            sr_result = await self._analyze_support_resistance(df)
-            if sr_result:
-                analyses.append(TechnicalAnalysis(
-                    type=AnalysisType.SUPPORT_RESISTANCE,
-                    confidence=sr_result['confidence'],
-                    data=sr_result,
-                    description=sr_result['description']
-                ))
-        except Exception as e:
-            self.logger.warning(f"Error en análisis S/R: {e}")
+        # Análisis Fibonacci
+        if enable_fibonacci:
+            try:
+                if hasattr(self.fibonacci_analyzer, 'analyze'):
+                    fib_result = await self.fibonacci_analyzer.analyze(df)
+                elif hasattr(self.fibonacci_analyzer, 'calculate_levels'):
+                    fib_result = await self.fibonacci_analyzer.calculate_levels(df)
+                else:
+                    fib_result = await self._basic_fibonacci_analysis(df)
+                    
+                if fib_result:
+                    description = fib_result.get('description', 'Análisis Fibonacci')
+                    if description is None:
+                        description = 'Análisis Fibonacci'
+                        
+                    analyses.append(TechnicalAnalysis(
+                        type=AnalysisType.FIBONACCI,
+                        confidence=fib_result.get('confidence', 0.5),
+                        data=fib_result,
+                        description=description
+                    ))
+            except Exception as e:
+                self.logger.warning(f"Error en análisis Fibonacci: {e}")
+        
+        # Análisis de soporte y resistencia
+        if enable_sr:
+            try:
+                sr_result = await self._analyze_support_resistance(df)
+                if sr_result:
+                    analyses.append(TechnicalAnalysis(
+                        type=AnalysisType.SUPPORT_RESISTANCE,
+                        confidence=sr_result['confidence'],
+                        data=sr_result,
+                        description=sr_result['description']
+                    ))
+            except Exception as e:
+                self.logger.warning(f"Error en análisis S/R: {e}")
         
         return analyses
     
@@ -204,21 +226,32 @@ class ConfluenceDetector:
     async def detect_confluence_signals(self, 
                                 analyses: List[TechnicalAnalysis], 
                                 df: pd.DataFrame) -> List[ConfluencePoint]:
-        """Detectar puntos de confluencia entre análisis"""
+        """Detectar puntos de confluencia entre análisis (método original mantenido para compatibilidad)"""
+        return await self._detect_confluence_signals_with_weights(analyses, df, self.analysis_weights)
+    
+    async def _detect_confluence_signals_with_weights(self, 
+                                                    analyses: List[TechnicalAnalysis], 
+                                                    df: pd.DataFrame,
+                                                    weights: Dict) -> List[ConfluencePoint]:
+        """Detectar confluencias con pesos personalizados"""
         confluences = []
         current_price = float(df['Close'].iloc[-1])
         
-        # Agrupar niveles de precio similares
+        # Agrupar niveles de precio similares con pesos
         price_levels = []
         
         for analysis in analyses:
             levels = self._extract_price_levels(analysis, current_price)
+            # ✅ NUEVO: Aplicar pesos a cada nivel
+            weight = weights.get(analysis.type, 0.25)
+            for level in levels:
+                level['weighted_confidence'] = level['confidence'] * weight
             price_levels.extend(levels)
         
         if not price_levels:
             return confluences
         
-        # Agrupar niveles cercanos (dentro del 0.1% del precio)
+        # Agrupar niveles cercanos
         tolerance = current_price * 0.001  # 0.1%
         grouped_levels = self._group_price_levels(price_levels, tolerance)
         
@@ -227,7 +260,7 @@ class ConfluenceDetector:
             if len(group['analyses']) >= 2:  # Al menos 2 análisis confluyen
                 confluence = ConfluencePoint(
                     price_level=group['avg_price'],
-                    strength=self._calculate_confluence_strength(group),
+                    strength=self._calculate_weighted_confluence_strength(group),
                     analyses=group['analyses'],
                     description=self._generate_confluence_description(group)
                 )
@@ -336,27 +369,26 @@ class ConfluenceDetector:
         }
     
     def _calculate_confluence_strength(self, group: Dict) -> float:
-        """Calcular la fuerza de confluencia de un grupo"""
-        # Factores que aumentan la fuerza:
-        # 1. Número de análisis diferentes que confluyen
-        # 2. Confianza total de los análisis
-        # 3. Diversidad de tipos de análisis
-        
+        """Calcular la fuerza de confluencia de un grupo (método original)"""
+        return self._calculate_weighted_confluence_strength(group)
+    
+    def _calculate_weighted_confluence_strength(self, group: Dict) -> float:
+        """Calcular fuerza de confluencia con pesos"""
         analysis_diversity = len(set(group['analyses']))
-        max_confidence = max(level['confidence'] for level in group['levels'])
-        avg_confidence = group['total_confidence'] / len(group['levels'])
+        
+        # ✅ NUEVO: Usar confianza ponderada si está disponible
+        total_weighted_confidence = sum(level.get('weighted_confidence', level['confidence']) 
+                                      for level in group['levels'])
+        avg_weighted_confidence = total_weighted_confidence / len(group['levels'])
         
         # Puntuación base por diversidad
-        diversity_score = min(analysis_diversity / 4.0, 1.0)  # Máximo 4 tipos de análisis
-        
-        # Puntuación por confianza
-        confidence_score = (max_confidence + avg_confidence) / 2.0
+        diversity_score = min(analysis_diversity / 4.0, 1.0)
         
         # Bonificación por número de confluencias
-        count_bonus = min(group['count'] / 5.0, 0.2)  # Máximo 20% de bonificación
+        count_bonus = min(group['count'] / 5.0, 0.2)
         
-        # Fuerza final
-        strength = (diversity_score * 0.4 + confidence_score * 0.6) + count_bonus
+        # Fuerza final con pesos
+        strength = (diversity_score * 0.4 + avg_weighted_confidence * 0.6) + count_bonus
         
         return min(strength, 1.0)
     
@@ -381,7 +413,17 @@ class ConfluenceDetector:
                              df: pd.DataFrame, 
                              confluence: ConfluencePoint, 
                              analyses: List[TechnicalAnalysis]) -> Signal:
-        """Generar señal de trading basada en confluencia"""
+        """Generar señal de trading basada en confluencia (método original mantenido para compatibilidad)"""
+        return await self._generate_signal_with_config(symbol, timeframe, df, confluence, analyses, None)
+    
+    async def _generate_signal_with_config(self, 
+                                         symbol: str, 
+                                         timeframe: str, 
+                                         df: pd.DataFrame, 
+                                         confluence: ConfluencePoint, 
+                                         analyses: List[TechnicalAnalysis],
+                                         config=None) -> Signal:
+        """Generar señal con configuración personalizada"""
         
         current_price = float(df['Close'].iloc[-1])
         
@@ -390,17 +432,27 @@ class ConfluenceDetector:
             signal_type = SignalType.BUY
             entry_price = current_price
             take_profit = confluence.price_level
-            stop_loss = self._calculate_stop_loss(df, signal_type, entry_price)
+            stop_loss = self._calculate_stop_loss_with_config(df, signal_type, entry_price, config)
         elif confluence.price_level < current_price * 0.999:  # 0.1% abajo
             signal_type = SignalType.SELL
             entry_price = current_price
             take_profit = confluence.price_level
-            stop_loss = self._calculate_stop_loss(df, signal_type, entry_price)
+            stop_loss = self._calculate_stop_loss_with_config(df, signal_type, entry_price, config)
         else:
             signal_type = SignalType.HOLD
             entry_price = current_price
             take_profit = None
             stop_loss = None
+        
+        # ✅ NUEVO: Ajustar take profit con relación riesgo/beneficio de la configuración
+        if config and signal_type != SignalType.HOLD and stop_loss:
+            risk_distance = abs(entry_price - stop_loss)
+            reward_distance = risk_distance * config.risk_reward_ratio
+            
+            if signal_type == SignalType.BUY:
+                take_profit = entry_price + reward_distance
+            else:
+                take_profit = entry_price - reward_distance
         
         # Crear señal
         signal = Signal(
@@ -422,15 +474,24 @@ class ConfluenceDetector:
                            df: pd.DataFrame, 
                            signal_type: SignalType, 
                            entry_price: float) -> float:
-        """Calcular stop loss basado en ATR y estructura del mercado"""
+        """Calcular stop loss basado en ATR y estructura del mercado (método original)"""
+        return self._calculate_stop_loss_with_config(df, signal_type, entry_price, None)
+    
+    def _calculate_stop_loss_with_config(self, 
+                                       df: pd.DataFrame, 
+                                       signal_type: SignalType, 
+                                       entry_price: float,
+                                       config=None) -> float:
+        """Calcular stop loss con configuración personalizada"""
         
-        # Calcular ATR (Average True Range)
+        # ✅ NUEVO: Usar multiplicador ATR de la configuración
         atr = self._calculate_atr(df, period=14)
+        atr_multiplier = config.atr_multiplier_sl if config else 2.0
         
         if signal_type == SignalType.BUY:
             # Para compra: stop loss debajo del precio de entrada
             recent_low = df['Low'].tail(20).min()
-            atr_stop = entry_price - (atr * 2)
+            atr_stop = entry_price - (atr * atr_multiplier)
             structure_stop = recent_low * 0.999  # 0.1% debajo del mínimo reciente
             
             # Usar el más conservador (más cercano al precio)
@@ -439,7 +500,7 @@ class ConfluenceDetector:
         else:  # SELL
             # Para venta: stop loss arriba del precio de entrada
             recent_high = df['High'].tail(20).max()
-            atr_stop = entry_price + (atr * 2)
+            atr_stop = entry_price + (atr * atr_multiplier)
             structure_stop = recent_high * 1.001  # 0.1% arriba del máximo reciente
             
             # Usar el más conservador (más cercano al precio)

@@ -1,4 +1,4 @@
-/* eslint-disable no-dupe-keys */
+ 
 /* eslint-disable no-unused-vars */
 import axios from 'axios'
 import { jwtDecode } from 'jwt-decode'
@@ -146,7 +146,7 @@ const generateMockSignals = (count = 10) => {
           confidence: Math.random(),
           description: 'Elliott Wave Analysis',
           data: {
-            pattern: { direction: signalType === 'buy' ? 'bullish' : 'bearish' },
+            direction: signalType === 'buy' ? 'bullish' : 'bearish', // Renamed from 'pattern'
             market_state: 'completion_wave_5',
             pattern: {
               waves: [
@@ -207,6 +207,20 @@ export default {
       console.error('❌ Error en login:', error)
       throw error
     }
+  },
+  async getRiskLockStatus() {
+    const response = await api.get("/api/auth/auth/risk/status")
+    return response.data
+  },
+
+  async lockRiskConfiguration({ total_capital, risk_percentage, source = "mt5", mt5_snapshot = null }) {
+    const response = await api.post("/api/auth/auth/risk/lock", {
+      total_capital,
+      risk_percentage,
+      source,
+      mt5_snapshot,
+    })
+    return response.data
   },
 
   async register(userData) {
@@ -299,15 +313,123 @@ export default {
       }
     }
   },
+// ✅ ANÁLISIS CON IA - MODIFICADO para enviar configuración por body
+// ✅ ANÁLISIS CON IA - MODIFICADO para incluir gestión de riesgo
+async analyzePair(pair, timeframe, config = null) {
+  const defaultConfig = {
+    // Configuración de confluencias
+    confluence_threshold: 0.6,
+    enable_elliott_wave: true,
+    enable_fibonacci: true,
+    enable_chart_patterns: true,
+    enable_support_resistance: true,
+    elliott_wave_weight: 0.25,
+    fibonacci_weight: 0.25,
+    chart_patterns_weight: 0.3,
+    support_resistance_weight: 0.2,
 
-  // ✅ ANÁLISIS CON IA
-  async analyzePair(pair, timeframe) {
-    const response = await api.post(`/api/signals/signals/analyze/${pair}`, null, {
-      params: { timeframe }
-    })
+    // Gestión de riesgo
+    total_capital: 10000,
+    risk_percentage: 2,
+    max_risk_amount: 200,
+
+    // Configuración fija
+    atr_multiplier_sl: 2.0,
+    risk_reward_ratio: 2.0,
+  }
+
+  const analysisConfig = config || defaultConfig
+
+  const TF_ALIASES = {
+    "1m": "M1",
+    "5m": "M5", 
+    "15m": "M15",
+    "30m": "M30",
+    "1h": "H1",
+    h1: "H1",
+    "60m": "H1",
+    "4h": "H4",
+    h4: "H4", 
+    "1d": "D1",
+    d1: "D1",
+    "1w": "W1",
+    w1: "W1",
+  }
+
+  // ✅ CORREGIDO: Normalizar timeframe correctamente
+  const normalizedTimeframe = TF_ALIASES[String(timeframe).toLowerCase()] ?? String(timeframe).toUpperCase()
+
+  // ✅ CORREGIDO: Incluir timeframe en el body (esto es lo que faltaba!)
+  const requestBody = {
+    ...analysisConfig,
+    timeframe: normalizedTimeframe, // ← ESTO ES CLAVE: timeframe en el body
+    risk_per_trade:
+      analysisConfig.risk_per_trade != null
+        ? analysisConfig.risk_per_trade
+        : analysisConfig.risk_percentage != null
+          ? Number(analysisConfig.risk_percentage)
+          : undefined,
+  }
+
+  console.log('🔄 Analizando par con timeframe en body:', { 
+    pair, 
+    originalTimeframe: timeframe,
+    normalizedTimeframe: normalizedTimeframe,
+    capital: analysisConfig.total_capital,
+    riskPercentage: analysisConfig.risk_percentage,
+    maxRisk: analysisConfig.max_risk_amount,
+    requestBody: requestBody
+  })
+
+  // ✅ CORREGIDO: Enviar requestBody (que incluye timeframe) en lugar de analysisConfig
+  const response = await api.post(`/api/signals/signals/analyze/${pair}`, requestBody, {
+    // Opcional: también puedes pasar timeframe en query params como fallback
+    params: {
+      timeframe: normalizedTimeframe
+    }
+  })
+  
+  console.log('✅ Respuesta del análisis:', {
+    timeframeEnviado: normalizedTimeframe,
+    timeframeRecibido: response.data.timeframe,
+    signals: response.data.signals?.length || 0,
+    response: response.data
+  })
+
+  return response.data
+},
+
+
+  // ----- MT5 CONEXIÓN -----
+  async connectMT5Account({ login, password, server, account_type, remember = false }) {
+    const response = await api.post("/api/mt5/connect", { login, password, server, account_type, remember })
     return response.data
-  },  
-
+  },
+  async autoConnectMT5() {
+    const response = await api.post("/api/mt5/autoconnect")
+    return response.data
+  },
+  async disconnectMT5Account() {
+    const response = await api.post("/api/mt5/disconnect")
+    return response.data
+  },
+  async getMT5Status() {
+    const response = await api.get("/api/mt5/status")
+    return response.data
+  },
+  // Perfil en DB (sin password)
+  async getMT5Profile() {
+    const response = await api.get("/api/mt5/profile")
+    return response.data
+  },
+  async saveMT5Profile({ login, server, account_type }) {
+    const response = await api.post("/api/mt5/profile/save", { login, server, account_type })
+    return response.data
+  },
+  async deleteMT5Profile() {
+    const response = await api.delete("/api/mt5/profile")
+    return response.data
+  },
   // ✅ GENERAR IMAGEN DE GRÁFICO
   async generateChartImage(signalData) {
     try {
@@ -531,6 +653,18 @@ export default {
     })
     
     return prices
+  },
+
+  // ✅ Obtener información de cuenta MT5
+  async getMT5AccountInfo() {
+    try {
+      const response = await api.get("/api/mt5/account")
+      // Ejemplo esperado: { balance, equity, margin_free, currency, server, login, account_type, name, leverage }
+      return response.data
+    } catch (error) {
+      console.error("❌ Error obteniendo cuenta MT5:", error)
+      throw error
+    }
   },
 
   // ✅ FUNCIÓN PARA VALIDAR CONEXIÓN

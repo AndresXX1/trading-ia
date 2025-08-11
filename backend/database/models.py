@@ -7,6 +7,7 @@ from bson import ObjectId
 from pydantic_core import core_schema
 from pydantic import GetCoreSchemaHandler
 
+
 class PyObjectId(ObjectId):
 
     @classmethod
@@ -38,6 +39,36 @@ class AnalysisType(str, Enum):
     CHART_PATTERN = "chart_pattern"
     FIBONACCI = "fibonacci"
     SUPPORT_RESISTANCE = "support_resistance"
+
+
+class AnalysisConfig(BaseModel):
+    """Configuración para el análisis de confluencias"""
+    # Configuración básica
+    confluence_threshold: float = 0.6  # Umbral mínimo de confluencia
+    risk_per_trade: float = 2.0  # Riesgo por operación en %
+    lot_size: float = 0.1  # Tamaño del lote
+    atr_multiplier_sl: float = 2.0  # Multiplicador ATR para stop loss
+    risk_reward_ratio: float = 2.0  # Relación riesgo/beneficio
+    
+    # Análisis habilitados
+    enable_elliott_wave: bool = True
+    enable_fibonacci: bool = True
+    enable_chart_patterns: bool = True
+    enable_support_resistance: bool = True
+
+        # Gestión de riesgo (compat: risk_percentage vs risk_per_trade)
+    risk_percentage: Optional[float] = None
+
+    # Timeframe en el body
+    timeframe: str = "H1"
+    
+    # Pesos personalizados (opcional)
+    elliott_wave_weight: float = 0.25
+    fibonacci_weight: float = 0.25
+    chart_patterns_weight: float = 0.30
+    support_resistance_weight: float = 0.20
+    
+
 
 # Modelos de Usuario
 class User(BaseModel):
@@ -237,3 +268,5 @@ class PerformanceStats(BaseModel):
         allow_population_by_field_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+
+        

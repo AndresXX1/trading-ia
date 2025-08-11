@@ -8,13 +8,14 @@ import logging
 import numpy as np
 from datetime import datetime
 import pandas as pd
-from database.models import User, Signal
+from database.models import User, Signal, AnalysisConfig
 from database.connection import get_database
 from mt5.data_provider import MT5DataProvider
 from ai.confluence_detector import ConfluenceDetector
 from api.auth import get_current_user
 from database.models import SignalType
 from bson import ObjectId
+from fastapi import Body
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -244,45 +245,106 @@ def prepare_for_json(data):
         except (TypeError, ValueError):
             return str(data)
 
+# Modificar solo el endpoint analyze_pair en signals.py
+ALLOWED_TIMEFRAMES = {"M1","M5","M15","M30","H1","H4","D1","W1"}
+ALIASES = {
+    "1m":"M1","5m":"M5","15m":"M15","30m":"M30",
+    "1h":"H1","h1":"H1","60m":"H1",
+    "4h":"H4","h4":"H4",
+    "1d":"D1","d1":"D1",
+    "1w":"W1","w1":"W1",
+}
+
+def normalize_timeframe(tf: str) -> str:
+    if not tf:
+        return "H1"
+    tf_clean = str(tf).strip()
+    return ALIASES.get(tf_clean.lower(), tf_clean.upper())
+
+def validate_timeframe(tf: str) -> str:
+    tf_norm = normalize_timeframe(tf)
+    if tf_norm not in ALLOWED_TIMEFRAMES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Timeframe inválido: {tf}. Permitidos: {sorted(list(ALLOWED_TIMEFRAMES))}"
+        )
+    return tf_norm
+
+def ensure_risk_fields(config):
+    # Compatibilidad: si sólo llega risk_percentage desde el front, úsalo como risk_per_trade
+    if getattr(config, "risk_per_trade", None) is None and getattr(config, "risk_percentage", None) is not None:
+        config.risk_per_trade = config.risk_percentage
+    return config
+    class Config:
+        json_encoders = {ObjectId: str}
+
 @router.post("/signals/analyze/{pair}")
 async def analyze_pair(
     pair: str,
     timeframe: str = "H1",
-    current_user: User = Depends(get_current_user),
-    db = Depends(get_database)
+    current_user=Depends(get_current_user),
+    db=Depends(get_database),
+    config: Optional[AnalysisConfig] = Body(default=None),  # viene en el body
 ):
+    """
+    Analiza un par usando el timeframe enviado en el body (config.timeframe).
+    Si no se envía, usa 'H1' por defecto. Se valida y normaliza la temporalidad.
+    """
     try:
+        # Config por defecto si no llega
+        if config is None:
+            config = AnalysisConfig()
+        # Compatibilidad de campos de riesgo
+        config = ensure_risk_fields(config)
+
+        # 1) Prioriza timeframe del body; 2) si no viene, usa el parámetro de la URL; 3) default H1
+        effective_timeframe = validate_timeframe(getattr(config, "timeframe", None) or timeframe or "H1")
+
+        logger.info(
+            f"Analizando {pair} | timeframe={effective_timeframe} | confluencia={config.confluence_threshold}"
+        )
+
+        # Conectar con MT5
         if not mt5_provider.connect():
             raise HTTPException(status_code=503, detail="Error conectando con MT5")
 
-        data = mt5_provider.get_realtime_data(pair, timeframe, 500)
+        # Cargar datos con el timeframe efectivo
+        data = mt5_provider.get_realtime_data(pair, effective_timeframe, 500)
         if data is None or data.empty:
             raise HTTPException(status_code=404, detail=f"No se pudieron obtener datos para {pair}")
 
-        signal = await confluence_detector.analyze_symbol(pair, data, timeframe)
-        
+        # Analizar con ConfluenceDetector usando el timeframe efectivo
+        signal = await confluence_detector.analyze_symbol(pair, data, effective_timeframe, config)
+
         saved_signals = []
         collection = db.trading_signals
+
+        # Config a devolver/guardar (siempre con TF normalizado)
+        config_out = config.dict()
+        config_out["timeframe"] = effective_timeframe
 
         if signal:
             # Convertir señal a diccionario
             signal_dict = {
                 "symbol": signal.symbol,
-                "timeframe": signal.timeframe,
-                "signal_type": signal.signal_type.value,
+                "timeframe": effective_timeframe,
+                "signal_type": getattr(signal.signal_type, "value", str(signal.signal_type)),
                 "entry_price": signal.entry_price,
                 "stop_loss": signal.stop_loss,
                 "take_profit": signal.take_profit,
                 "confluence_score": signal.confluence_score,
+                # Compatibilidad con gestión de riesgo usada
+                "lot_size": getattr(config, "lot_size", None),
+                "risk_per_trade": getattr(config, "risk_per_trade", None),
                 "technical_analyses": [
                     {
-                        "type": analysis.type.value,
-                        "confidence": analysis.confidence,
-                        "data": prepare_for_json(analysis.data),
-                        "description": analysis.description
+                        "type": ta.type.value if hasattr(ta.type, "value") else str(ta.type),
+                        "confidence": ta.confidence,
+                        "data": prepare_for_json(ta.data),
+                        "description": ta.description,
                     }
-                    for analysis in signal.technical_analyses
-                ] if signal.technical_analyses else []
+                    for ta in (signal.technical_analyses or [])
+                ] if getattr(signal, "technical_analyses", None) else [],
             }
 
             # Documento para MongoDB
@@ -290,40 +352,45 @@ async def analyze_pair(
                 "user_id": current_user.id,
                 **signal_dict,
                 "timestamp": datetime.utcnow(),
-                "status": "ACTIVE"
+                "status": "ACTIVE",
+                "config_used": config_out,
             }
 
-            # Insertar en MongoDB
+            # Insertar
             result = await collection.insert_one(signal_doc)
             signal_doc["_id"] = result.inserted_id
-            
-            # Preparar para respuesta (limpiar ObjectIds)
+
+            # Preparar respuesta limpia
             cleaned_signal = prepare_for_json(signal_doc)
             saved_signals.append(cleaned_signal)
 
-            # Enviar notificación WebSocket
+            # Notificar por WebSocket (best effort)
             try:
                 await manager.send_personal_message(
                     json.dumps({
                         "type": "new_signals",
                         "pair": pair,
-                        "signals": saved_signals
+                        "signals": saved_signals,
+                        "config_used": config_out,
                     }),
-                    current_user.id
+                    current_user.id,
                 )
             except Exception as ws_error:
                 logger.warning(f"Error enviando WebSocket: {ws_error}")
 
-        # Devolver JSONResponse directamente
+        # Respuesta final (si no hubo señal, signals = [])
         response_data = {
             "pair": pair,
-            "timeframe": timeframe,
+            "timeframe": effective_timeframe,  # ← SIEMPRE el TF efectivo
             "signals": saved_signals,
-            "analysis_time": datetime.utcnow().isoformat()
+            "analysis_time": datetime.utcnow().isoformat(),
+            "config_used": config_out,
         }
-        
+
         return JSONResponse(content=response_data)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error analizando par {pair}: {e}", exc_info=True)
         return JSONResponse(
@@ -332,10 +399,9 @@ async def analyze_pair(
                 "error": "Error analizando par",
                 "detail": str(e),
                 "pair": pair,
-                "timestamp": datetime.utcnow().isoformat()
-            }
+                "timestamp": datetime.utcnow().isoformat(),
+            },
         )
-
 @router.get("/signals/pairs/")
 async def get_available_pairs(current_user: User = Depends(get_current_user)):
     """Obtiene los pares disponibles en MT5"""
