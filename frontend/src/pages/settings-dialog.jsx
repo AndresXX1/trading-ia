@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 "use client"
 import { useState, useCallback, useEffect } from "react"
 import { useDispatch, useSelector } from "react-redux"
@@ -30,7 +31,7 @@ import {
   Shield,
   Lock,
   Psychology,
-  Speed,
+  PlayArrow,
   AccountBalanceWallet,
   Login as LoginIcon,
   Logout as LogoutIcon,
@@ -48,6 +49,7 @@ import {
   setRemember,
 } from "../features/auth/mt5-slice"
 import api from "../api"
+import AutoTradingComponent from "./automatic-execution"
 
 function getSystemTimeZone() {
   try {
@@ -56,6 +58,145 @@ function getSystemTimeZone() {
     return "America/New_York"
   }
 }
+
+const TRADING_STRATEGIES = [
+  {
+    key: "scalping",
+    label: "Scalping",
+    description: "Operaciones rápidas de 1-5 minutos aprovechando pequeños movimientos del precio",
+    timeframes: ["M1", "M5"],
+    riskLevel: "Alto",
+  },
+  {
+    key: "day_trading",
+    label: "Day Trading",
+    description: "Operaciones intradiarias que se cierran antes del final del día",
+    timeframes: ["M15", "M30", "H1"],
+    riskLevel: "Medio-Alto",
+  },
+  {
+    key: "swing_trading",
+    label: "Swing Trading",
+    description: "Operaciones de varios días a semanas siguiendo tendencias de mediano plazo",
+    timeframes: ["H4", "D1"],
+    riskLevel: "Medio",
+  },
+  {
+    key: "position_trading",
+    label: "Position Trading",
+    description: "Operaciones de largo plazo basadas en análisis fundamental y tendencias principales",
+    timeframes: ["D1", "W1"],
+    riskLevel: "Bajo",
+  },
+]
+
+const TRADING_STRATEGIES_ADVANCED = [
+  {
+    key: "maleta",
+    label: "Estrategia Maleta",
+    description:
+      "Estrategia desarrollada por Jhonatan Nuñez que utiliza el indicador Maleta Stochastic JR para identificar puntos de entrada y salida óptimos en el mercado.",
+    icon: "💼",
+    timeframes: ["M15", "M30", "H1", "H4"],
+    riskLevel: "Medio",
+  },
+  {
+    key: "position_trading",
+    label: "Trading de Posición",
+    description:
+      "Estrategia a largo plazo que mantiene posiciones durante semanas o meses, basada en análisis fundamental y técnico de tendencias principales.",
+    icon: "📈",
+    timeframes: ["D1", "W1"],
+    riskLevel: "Bajo",
+  },
+  {
+    key: "swing_trading_advanced",
+    label: "Swing Trading Avanzado",
+    description:
+      "Captura movimientos de precio de mediano plazo (días a semanas) utilizando análisis técnico avanzado y patrones de reversión.",
+    icon: "🔄",
+    timeframes: ["H4", "D1"],
+    riskLevel: "Medio",
+  },
+  {
+    key: "algorithmic_trading",
+    label: "Trading Algorítmico",
+    description:
+      "Estrategias sistemáticas basadas en algoritmos predefinidos que ejecutan operaciones automáticamente según reglas específicas.",
+    icon: "🤖",
+    timeframes: ["M5", "M15", "M30", "H1"],
+    riskLevel: "Medio-Alto",
+  },
+  {
+    key: "pairs_trading",
+    label: "Trading por Pares",
+    description:
+      "Estrategia que opera la diferencia de precio entre dos activos correlacionados, comprando uno y vendiendo otro simultáneamente.",
+    icon: "⚖️",
+    timeframes: ["H1", "H4", "D1"],
+    riskLevel: "Medio",
+  },
+  {
+    key: "mean_reversion",
+    label: "Reversión a la Media",
+    description:
+      "Estrategia contraria que busca oportunidades cuando los precios se alejan significativamente de su valor promedio histórico.",
+    icon: "📊",
+    timeframes: ["M30", "H1", "H4"],
+    riskLevel: "Medio-Alto",
+  },
+  {
+    key: "social_trading",
+    label: "Social Trading",
+    description:
+      "Estrategia que replica las operaciones de traders exitosos o utiliza señales de la comunidad para tomar decisiones de trading.",
+    icon: "👥",
+    timeframes: ["M15", "M30", "H1"],
+    riskLevel: "Variable",
+  },
+  {
+    key: "carry_trade",
+    label: "Carry Trade",
+    description:
+      "Estrategia que aprovecha las diferencias en las tasas de interés entre divisas, manteniendo posiciones a largo plazo.",
+    icon: "💰",
+    timeframes: ["D1", "W1"],
+    riskLevel: "Bajo-Medio",
+  },
+  {
+    key: "hedging_strategy",
+    label: "Estrategia de Cobertura",
+    description:
+      "Técnica de gestión de riesgo que utiliza posiciones opuestas para proteger el capital de movimientos adversos del mercado.",
+    icon: "🛡️",
+    timeframes: ["H1", "H4", "D1"],
+    riskLevel: "Bajo",
+  },
+  {
+    key: "pyramiding",
+    label: "Piramidación",
+    description:
+      "Estrategia que añade posiciones adicionales a una operación ganadora para maximizar las ganancias en tendencias fuertes.",
+    icon: "🔺",
+    timeframes: ["M30", "H1", "H4"],
+    riskLevel: "Alto",
+  },
+]
+
+const FOREX_PAIRS = [
+  { key: "EURUSD", label: "EUR/USD", category: "Major" },
+  { key: "GBPUSD", label: "GBP/USD", category: "Major" },
+  { key: "USDJPY", label: "USD/JPY", category: "Major" },
+  { key: "USDCHF", label: "USD/CHF", category: "Major" },
+  { key: "AUDUSD", label: "AUD/USD", category: "Major" },
+  { key: "USDCAD", label: "USD/CAD", category: "Major" },
+  { key: "NZDUSD", label: "NZD/USD", category: "Major" },
+  { key: "EURGBP", label: "EUR/GBP", category: "Cross" },
+  { key: "EURJPY", label: "EUR/JPY", category: "Cross" },
+  { key: "GBPJPY", label: "GBP/JPY", category: "Cross" },
+  { key: "AUDJPY", label: "AUD/JPY", category: "Cross" },
+  { key: "CHFJPY", label: "CHF/JPY", category: "Cross" },
+]
 
 // Nuevo sistema de tipos de ejecución
 const EXECUTION_TYPES = [
@@ -124,8 +265,6 @@ export default function SettingsDialog({
   setRiskManagement,
   aiSettings,
   setAiSettings,
-  realtimeSettings,
-  setRealtimeSettings,
   showSnackbar,
   timeframes,
 }) {
@@ -138,6 +277,26 @@ export default function SettingsDialog({
 
   const [settingsTab, setSettingsTab] = useState(0)
 
+  // 🔹 Extensión de configuración de riesgo
+  const [extendedRiskManagement, setExtendedRiskManagement] = useState({
+    ...riskManagement,
+    maxDailyLossPercent: 5, // % máximo de pérdida diaria
+    maxWeeklyLossPercent: 15, // % máximo de pérdida semanal
+    maxDailyProfitPercent: 10, // % máximo de ganancia diaria
+    maxOpenTrades: 5, // Límite de operaciones simultáneas
+    minRRR: 2, // Relación Riesgo:Beneficio mínima
+    maxLosingStreak: 3, // Racha máxima de pérdidas antes de pausar
+    coolDownHours: 4, // Horas de pausa tras racha
+    riskByStrategy: {
+      // Perfiles por estrategia
+      scalping: { riskPercent: 1, maxTrades: 5 },
+      day_trading: { riskPercent: 2, maxTrades: 3 },
+      swing_trading: { riskPercent: 2, maxTrades: 2 },
+      position_trading: { riskPercent: 3, maxTrades: 1 },
+      maleta: { riskPercent: 2, maxTrades: 2 },
+    },
+  })
+
   // Formulario conexión MT5
   const [mt5Form, setMt5Form] = useState({
     type: mt5.account_type || "demo", // 'demo' | 'real'
@@ -149,6 +308,17 @@ export default function SettingsDialog({
   const [rememberSession, setRememberSession] = useState(mt5.remember || false)
   const [autoReconnect, setAutoReconnectLocal] = useState(mt5.autoReconnect || false)
   const [locking, setLocking] = useState(false)
+
+  const [autoTradingActive, setAutoTradingActive] = useState(false)
+  const [autoTradingSettings, setAutoTradingSettings] = useState({
+    selectedPairs: ["EURUSD", "GBPUSD"],
+    activeSessions: ["london", "newyork"],
+    maxConcurrentTrades: 3,
+    enableSessionFiltering: true,
+    pauseOnNews: true,
+    autoStopLoss: true,
+    autoTakeProfit: true,
+  })
 
   // Cargar perfil, autoconectar y traer estado de lock
   useEffect(() => {
@@ -229,12 +399,200 @@ export default function SettingsDialog({
       : allowedExecutionTypes[0] || "market"
 
   const selectedExecutionType = aiSettings.selectedExecutionType || "market"
+  const selectedStrategy = aiSettings.selectedStrategy || "day_trading"
+
+  const getCombinedTimeframes = () => {
+    const traderTypeTimeframes = TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.timeframes || []
+    const tradingStrategyTimeframes =
+      TRADING_STRATEGIES_ADVANCED.find((s) => s.key === (aiSettings.selectedTradingStrategy || "maleta"))?.timeframes ||
+      []
+
+    // Combinar ambas arrays y eliminar duplicados
+    const combinedTimeframes = [...new Set([...traderTypeTimeframes, ...tradingStrategyTimeframes])]
+
+    // Ordenar las temporalidades de menor a mayor
+    const timeframeOrder = ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"]
+    return combinedTimeframes.sort((a, b) => timeframeOrder.indexOf(a) - timeframeOrder.indexOf(b))
+  }
+
+  const analyzePair = async (pair) => {
+    console.log("🔍 DEBUG - Estado completo de aiSettings:", aiSettings)
+    console.log("🔍 DEBUG - selectedStrategy:", aiSettings?.selectedStrategy)
+    console.log("🔍 DEBUG - selectedTradingStrategy:", aiSettings?.selectedTradingStrategy)
+    console.log("🔍 DEBUG - aiSettings es null/undefined?", aiSettings === null || aiSettings === undefined)
+
+    // Verificar si aiSettings existe
+    if (!aiSettings) {
+      console.log("❌ DEBUG - aiSettings es null o undefined")
+      showSnackbar("❌ Error: Configuración no inicializada", "error")
+      return
+    }
+
+    console.log("🔍 DEBUG - selectedStrategy desde estado local:", selectedStrategy)
+    console.log("🔍 DEBUG - Comparando valores:")
+    console.log("  - aiSettings.selectedStrategy:", aiSettings.selectedStrategy)
+    console.log("  - selectedStrategy (estado local):", selectedStrategy)
+
+    const userSelectedStrategy = aiSettings.selectedStrategy || selectedStrategy
+    const userSelectedTradingStrategy = aiSettings.selectedTradingStrategy
+
+    console.log("🔍 DEBUG - userSelectedStrategy final:", userSelectedStrategy)
+    console.log("🔍 DEBUG - userSelectedTradingStrategy final:", userSelectedTradingStrategy)
+    console.log("🔍 DEBUG - Validación selectedStrategy:", !!userSelectedStrategy)
+    console.log("🔍 DEBUG - Validación selectedTradingStrategy:", !!userSelectedTradingStrategy)
+
+    if (!userSelectedStrategy) {
+      console.log("❌ DEBUG - selectedStrategy es falsy:", userSelectedStrategy)
+      console.log("❌ DEBUG - Deteniendo ejecución por falta de selectedStrategy")
+      showSnackbar("❌ Debes seleccionar un Tipo de Trader antes de analizar", "error")
+      return
+    }
+
+    if (!userSelectedTradingStrategy) {
+      console.log("❌ DEBUG - selectedTradingStrategy es falsy:", userSelectedTradingStrategy)
+      console.log("❌ DEBUG - Deteniendo ejecución por falta de selectedTradingStrategy")
+      showSnackbar("❌ Debes seleccionar una Estrategia de Trading antes de analizar", "error")
+      return
+    }
+
+    console.log("✅ DEBUG - Todas las validaciones pasaron, construyendo requestBody...")
+    console.log("✅ DEBUG - Valores que se enviarán:")
+    console.log("  - trader_type:", userSelectedStrategy)
+    console.log("  - trading_strategy:", userSelectedTradingStrategy)
+
+    const getSafeTimeframes = (strategies, key) => {
+      const strategy = strategies.find((s) => s.key === key)
+      return strategy?.timeframes || []
+    }
+
+    const getSafeCombinedTimeframes = () => {
+      const traderTypeTimeframes = getSafeTimeframes(TRADING_STRATEGIES, userSelectedStrategy)
+      const tradingStrategyTimeframes = getSafeTimeframes(TRADING_STRATEGIES_ADVANCED, userSelectedTradingStrategy)
+
+      // Combinar ambas arrays y eliminar duplicados
+      const combinedTimeframes = [...new Set([...traderTypeTimeframes, ...tradingStrategyTimeframes])]
+
+      // Ordenar las temporalidades de menor a mayor
+      const timeframeOrder = ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1"]
+      return combinedTimeframes.sort((a, b) => timeframeOrder.indexOf(a) - timeframeOrder.indexOf(b))
+    }
+
+    const requestBody = {
+      // Configuración básica
+      timeframe: aiSettings.analysisTimeframe,
+      confluence_threshold: aiSettings.confluenceThreshold,
+
+      // Análisis técnicos habilitados
+      enable_elliott_wave: true,
+      enable_fibonacci: true,
+      enable_chart_patterns: true,
+      enable_support_resistance: true,
+
+      // Pesos de análisis
+      elliott_wave_weight: aiSettings.elliottWaveWeight || 0.25,
+      fibonacci_weight: aiSettings.fibonacciWeight || 0.25,
+      chart_patterns_weight: aiSettings.chartPatternsWeight || 0.3,
+      support_resistance_weight: aiSettings.supportResistanceWeight || 0.2,
+
+      // Gestión de riesgo
+      total_capital: riskManagement.totalBalance || 10000,
+      risk_percentage: riskManagement.riskPerTrade || 2,
+      max_risk_amount: ((riskManagement.totalBalance || 10000) * (riskManagement.riskPerTrade || 2)) / 100,
+      atr_multiplier_sl: 2.0,
+      risk_reward_ratio: 2.0,
+
+      trader_type: userSelectedStrategy,
+      trader_timeframes: getSafeTimeframes(TRADING_STRATEGIES, userSelectedStrategy),
+      trading_strategy: userSelectedTradingStrategy,
+      strategy_timeframes: getSafeTimeframes(TRADING_STRATEGIES_ADVANCED, userSelectedTradingStrategy),
+      combined_timeframes: getSafeCombinedTimeframes(),
+
+      // Tipo de ejecución
+      execution_type: selectedExecutionType || "market",
+      allowed_execution_types: allowedExecutionTypes.length > 0 ? allowedExecutionTypes : ["market"],
+    }
+
+    console.log("🔄 Analizando par con valores REALES seleccionados por el usuario:", {
+      pair,
+      timeframe: aiSettings.analysisTimeframe,
+      confluenceThreshold: aiSettings.confluenceThreshold,
+      executionType: selectedExecutionType,
+      allowedExecutionTypes: allowedExecutionTypes,
+      traderType: userSelectedStrategy, // Valor real seleccionado
+      traderTimeframes: getSafeTimeframes(TRADING_STRATEGIES, userSelectedStrategy),
+      tradingStrategy: userSelectedTradingStrategy, // Valor real seleccionado
+      strategyTimeframes: getSafeTimeframes(TRADING_STRATEGIES_ADVANCED, userSelectedTradingStrategy),
+      combinedTimeframes: getSafeCombinedTimeframes(),
+      riskManagement: {
+        totalBalance: riskManagement.totalBalance,
+        riskPerTrade: riskManagement.riskPerTrade,
+      },
+      requestBody: requestBody,
+    })
+
+    console.log("🚀 DEBUG - RequestBody completo que se enviará:", requestBody)
+    console.log("🚀 DEBUG - Verificando propiedades críticas en requestBody:")
+    console.log("  - requestBody.trader_type:", requestBody.trader_type)
+    console.log("  - requestBody.trading_strategy:", requestBody.trading_strategy)
+
+    try {
+      const response = await api.post(`/api/signals/signals/analyze/${pair}`, requestBody)
+
+      console.log("✅ Respuesta del análisis:", response.data)
+      return response.data
+    } catch (error) {
+      console.error("❌ Error en análisis:", error)
+      throw error
+    }
+  }
+
+  const getRandomTimeframeForStrategy = (strategyKey) => {
+    const strategy = TRADING_STRATEGIES.find((s) => s.key === strategyKey)
+    if (!strategy || !strategy.timeframes.length) return "H1"
+
+    const randomIndex = Math.floor(Math.random() * strategy.timeframes.length)
+    return strategy.timeframes[randomIndex]
+  }
 
   const handleExecutionTypeChange = (key) => {
     setAiSettings((prev) => ({
       ...prev,
       selectedExecutionType: key,
     }))
+  }
+
+  const handleStrategyChange = (key) => {
+    const strategy = TRADING_STRATEGIES.find((s) => s.key === key)
+    const randomTimeframe = getRandomTimeframeForStrategy(key)
+    setAiSettings((prev) => ({
+      ...prev,
+      selectedStrategy: key,
+      analysisTimeframe: randomTimeframe,
+    }))
+  }
+
+  const handleAutoTradingToggle = () => {
+    if (!isConnected) {
+      showSnackbar("⚠️ Debes conectarte a MT5 antes de activar la ejecución automática", "warning")
+      return
+    }
+
+    if (!riskManagement.isLocked) {
+      showSnackbar("⚠️ Debes bloquear la configuración de riesgo antes de activar la ejecución automática", "warning")
+      setSettingsTab(1)
+      return
+    }
+
+    if (autoTradingSettings.selectedPairs.length === 0) {
+      showSnackbar("⚠️ Debes seleccionar al menos un par de divisas para operar", "warning")
+      return
+    }
+
+    setAutoTradingActive(!autoTradingActive)
+    showSnackbar(
+      autoTradingActive ? "🛑 Ejecución automática detenida" : "🚀 Ejecución automática iniciada",
+      autoTradingActive ? "info" : "success",
+    )
   }
 
   const selectedTimeZone = aiSettings.sessionsTimeZone || getSystemTimeZone()
@@ -247,7 +605,7 @@ export default function SettingsDialog({
   }, [allowedExecutionTypes, defaultExecutionType, setAiSettings])
 
   // Función para toggle de tipos de ejecución - NUEVA
-  // eslint-disable-next-line no-unused-vars
+
   const toggleExecutionType = (key) => {
     const isEnabled = allowedExecutionTypes.includes(key)
 
@@ -274,10 +632,19 @@ export default function SettingsDialog({
   }
 
   const lockRiskConfigurationServer = useCallback(async () => {
-    // Construir payload con snapshot de MT5
+    // Construir payload con snapshot de MT5 y configuraciones avanzadas
     const payload = {
       total_capital: Number(riskManagement.totalCapital) || 0,
       risk_percentage: Number(riskManagement.riskPercentage) || 1,
+      extended_risk_config: {
+        maxDailyLossPercent: extendedRiskManagement.maxDailyLossPercent,
+        maxWeeklyLossPercent: extendedRiskManagement.maxDailyLossPercent,
+        maxOpenTrades: extendedRiskManagement.maxOpenTrades,
+        minRRR: extendedRiskManagement.minRRR,
+        maxLosingStreak: extendedRiskManagement.maxLosingStreak,
+        coolDownHours: extendedRiskManagement.coolDownHours,
+        riskByStrategy: extendedRiskManagement.riskByStrategy,
+      },
       source: "mt5",
       mt5_snapshot: account
         ? {
@@ -301,7 +668,7 @@ export default function SettingsDialog({
         totalCapital: Number(data.total_capital),
         riskPercentage: Number(data.risk_percentage),
       }))
-      showSnackbar("✅ Configuración de riesgo bloqueada y guardada en tu perfil", "success")
+      showSnackbar("✅ Configuración de riesgo completa bloqueada y guardada en tu perfil", "success")
       setSettingsTab(2) // ir a Confluencias IA
     } catch (e) {
       showSnackbar(`❌ Error al bloquear en el servidor: ${e?.message || "Error desconocido"}`, "error")
@@ -311,6 +678,7 @@ export default function SettingsDialog({
   }, [
     riskManagement.totalCapital,
     riskManagement.riskPercentage,
+    extendedRiskManagement, // Agregar dependencia de configuraciones avanzadas
     account,
     mt5.lastLogin,
     mt5.lastServer,
@@ -423,7 +791,6 @@ export default function SettingsDialog({
       await dispatch(deleteMT5Profile()).unwrap()
       setRememberSession(false)
       showSnackbar("🗑️ Perfil de MT5 eliminado", "info")
-      // eslint-disable-next-line no-unused-vars
     } catch (e) {
       showSnackbar("⚠️ No se pudo eliminar el perfil", "warning")
     }
@@ -450,16 +817,29 @@ export default function SettingsDialog({
             <Settings sx={{ mr: 1 }} />
             {"Configuración de Trading Profesional"}
           </Box>
-          {riskManagement.isLocked && (
-            <Chip
-              label="🔒 RIESGO BLOQUEADO"
-              sx={{
-                backgroundColor: "#00ff88",
-                color: "#000000",
-                fontWeight: "bold",
-              }}
-            />
-          )}
+          <Box sx={{ display: "flex", gap: 1 }}>
+            {riskManagement.isLocked && (
+              <Chip
+                label="🔒 RIESGO BLOQUEADO"
+                sx={{
+                  backgroundColor: "#00ff88",
+                  color: "#000000",
+                  fontWeight: "bold",
+                }}
+              />
+            )}
+            {autoTradingActive && (
+              <Chip
+                label="🚀 AUTO-TRADING ACTIVO"
+                sx={{
+                  backgroundColor: "#ff6b6b",
+                  color: "#ffffff",
+                  fontWeight: "bold",
+                  animation: "pulse 2s infinite",
+                }}
+              />
+            )}
+          </Box>
         </Box>
       </DialogTitle>
 
@@ -516,8 +896,11 @@ export default function SettingsDialog({
             <Tab
               label={
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Speed />
-                  {"Tiempo Real"}
+                  <PlayArrow />
+                  {"Ejecución Automática"}
+                  {autoTradingActive && (
+                    <Chip label="Activo" size="small" sx={{ ml: 1, height: 18, bgcolor: "#00ff88", color: "#000" }} />
+                  )}
                 </Box>
               }
             />
@@ -822,22 +1205,29 @@ export default function SettingsDialog({
               <Typography variant="body2">
                 <strong>{"⚠️ IMPORTANTE:"}</strong>{" "}
                 {
-                  "El capital total se fija automáticamente con tu saldo MT5. Al bloquear esta configuración, se guardará en tu perfil y no podrás modificarla luego."
+                  "Todas las configuraciones de gestión de riesgo se bloquearán juntas. Al confirmar, se guardará en tu perfil y no podrás modificarlas luego."
                 }
               </Typography>
             </Alert>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <Card
-                  sx={{
-                    backgroundColor: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(0,255,255,0.2)",
-                    p: 2,
-                  }}
-                >
-                  <Typography variant="h6" sx={{ color: "#00ffff", mb: 2 }}>
-                    {"💰 Configuración de Capital"}
+
+            <Card
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(0,255,255,0.2)",
+                p: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ color: "#00ffff", mb: 3 }}>
+                {"💰 Configuración Completa de Gestión de Riesgo"}
+              </Typography>
+
+              <Grid container spacing={3}>
+                {/* Configuración Básica */}
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" sx={{ color: "#00ff88", mb: 2, fontWeight: "bold" }}>
+                    {"📊 Configuración Básica"}
                   </Typography>
+
                   <TextField
                     fullWidth
                     label="Capital Total (USD)"
@@ -853,8 +1243,9 @@ export default function SettingsDialog({
                       readOnly: true,
                       startAdornment: <Typography sx={{ color: "#00ffff", mr: 1 }}>$</Typography>,
                     }}
-                    helperText="Fijado automáticamente por saldo MT5. Modifica tu capital desde MetaTrader para actualizarlo aquí."
+                    helperText="Fijado automáticamente por saldo MT5"
                   />
+
                   <FormControl fullWidth sx={{ mb: 2 }}>
                     <InputLabel sx={{ color: "#00ffff" }}>{"Riesgo por Operación"}</InputLabel>
                     <Select
@@ -875,77 +1266,406 @@ export default function SettingsDialog({
                       <MenuItem value={3}>{"3% - Agresivo (Máximo)"}</MenuItem>
                     </Select>
                   </FormControl>
-                  {!riskManagement.isLocked && (
-                    <Button
-                      fullWidth
-                      variant="contained"
-                      onClick={lockRiskConfiguration}
-                      disabled={locking || !riskManagement.totalCapital || riskManagement.totalCapital <= 0}
-                      sx={{
-                        backgroundColor: "#ff6b6b",
-                        color: "#ffffff",
-                        "&:hover": { backgroundColor: "#ff5252" },
-                        "&:disabled": { backgroundColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" },
-                      }}
-                    >
-                      {locking ? "Bloqueando..." : "🔒 Bloquear Configuración (persistente)"}
-                    </Button>
-                  )}
-                  {riskManagement.isLocked && (
-                    <Alert severity="success" sx={{ backgroundColor: "rgba(76,175,80,0.1)", mt: 2 }}>
-                      <Typography variant="body2">
-                        {"✅ Configuración bloqueada el "}
-                        {riskManagement.lockedAt ? new Date(riskManagement.lockedAt).toLocaleString() : "N/A"}
-                      </Typography>
-                    </Alert>
-                  )}
-                </Card>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Card
-                  sx={{
-                    backgroundColor: "rgba(255,255,255,0.05)",
-                    border: "1px solid rgba(0,255,255,0.2)",
-                    p: 2,
-                  }}
-                >
-                  <Typography variant="h6" sx={{ color: "#00ffff", mb: 2 }}>
-                    {"📊 Cálculos Automáticos"}
-                  </Typography>
-                  <Box sx={{ mb: 2 }}>
+
+                  <Box sx={{ mb: 2, p: 2, backgroundColor: "rgba(0,255,136,0.1)", borderRadius: 1 }}>
                     <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mb: 1 }}>
                       {"Máximo a Arriesgar por Operación:"}
                     </Typography>
-                    <Typography variant="h4" sx={{ color: "#00ff88", fontWeight: "bold" }}>
-                      {`${((riskManagement.totalCapital * riskManagement.riskPercentage) / 100).toLocaleString()}`}
+                    <Typography variant="h5" sx={{ color: "#00ff88", fontWeight: "bold" }}>
+                      ${((riskManagement.totalCapital * riskManagement.riskPercentage) / 100).toLocaleString()}
                     </Typography>
                   </Box>
-                  <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.1)" }} />
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mb: 1 }}>
-                      {"Lote Calculado (ejemplo EURUSD, 50 pips SL):"}
-                    </Typography>
-                    <Typography variant="h5" sx={{ color: "#00ffff", fontWeight: "bold" }}>
-                      {`${((riskManagement.totalCapital * riskManagement.riskPercentage) / 100 / 50).toFixed(2)} lotes`}
-                    </Typography>
-                  </Box>
-                  <Alert severity="info" sx={{ backgroundColor: "rgba(33,150,243,0.1)" }}>
-                    <Typography variant="caption">
-                      {
-                        "💡 El tamaño del lote se calcula automáticamente por señal usando la distancia al SL y el valor del pip."
-                      }
-                    </Typography>
-                  </Alert>
-                </Card>
+                </Grid>
+
+                {/* Configuración Avanzada */}
+                <Grid item xs={12} md={6}>
+                  <Typography variant="subtitle1" sx={{ color: "#ff6b6b", mb: 2, fontWeight: "bold" }}>
+                    {"⚠️ Configuración Avanzada"}
+                  </Typography>
+
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Pérdida máxima diaria (%)"
+                        type="number"
+                        value={extendedRiskManagement.maxDailyLossPercent}
+                        onChange={(e) =>
+                          setExtendedRiskManagement((prev) => ({
+                            ...prev,
+                            maxDailyLossPercent: Number(e.target.value),
+                          }))
+                        }
+                        disabled={riskManagement.isLocked}
+                        sx={{
+                          "& .MuiInputLabel-root": { color: "#00ffff" },
+                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Pérdida máxima semanal (%)"
+                        type="number"
+                        value={extendedRiskManagement.maxWeeklyLossPercent}
+                        onChange={(e) =>
+                          setExtendedRiskManagement((prev) => ({
+                            ...prev,
+                            maxWeeklyLossPercent: Number(e.target.value),
+                          }))
+                        }
+                        disabled={riskManagement.isLocked}
+                        sx={{
+                          "& .MuiInputLabel-root": { color: "#00ffff" },
+                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Ganancia máxima diaria (%)"
+                        type="number"
+                        value={extendedRiskManagement.maxDailyProfitPercent}
+                        onChange={(e) =>
+                          setExtendedRiskManagement((prev) => ({
+                            ...prev,
+                            maxDailyProfitPercent: Number(e.target.value),
+                          }))
+                        }
+                        disabled={riskManagement.isLocked}
+                        sx={{
+                          "& .MuiInputLabel-root": { color: "#00ffff" },
+                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Máximo operaciones abiertas"
+                        type="number"
+                        value={extendedRiskManagement.maxOpenTrades}
+                        onChange={(e) =>
+                          setExtendedRiskManagement((prev) => ({ ...prev, maxOpenTrades: Number(e.target.value) }))
+                        }
+                        disabled={riskManagement.isLocked}
+                        sx={{
+                          "& .MuiInputLabel-root": { color: "#00ffff" },
+                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Relación R:R mínima"
+                        type="number"
+                        value={extendedRiskManagement.minRRR}
+                        onChange={(e) =>
+                          setExtendedRiskManagement((prev) => ({ ...prev, minRRR: Number(e.target.value) }))
+                        }
+                        disabled={riskManagement.isLocked}
+                        sx={{
+                          "& .MuiInputLabel-root": { color: "#00ffff" },
+                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                        }}
+                      />
+                    </Grid>
+
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Racha máxima de pérdidas"
+                        type="number"
+                        value={extendedRiskManagement.maxLosingStreak}
+                        onChange={(e) =>
+                          setExtendedRiskManagement((prev) => ({ ...prev, maxLosingStreak: Number(e.target.value) }))
+                        }
+                        disabled={riskManagement.isLocked}
+                        sx={{
+                          "& .MuiInputLabel-root": { color: "#00ffff" },
+                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                        }}
+                      />
+                    </Grid>
+                  </Grid>
+                </Grid>
               </Grid>
-            </Grid>
+
+              {!riskManagement.isLocked && (
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={lockRiskConfiguration}
+                  disabled={locking || !riskManagement.totalCapital || riskManagement.totalCapital <= 0}
+                  sx={{
+                    mt: 3,
+                    backgroundColor: "#ff6b6b",
+                    color: "#ffffff",
+                    "&:hover": { backgroundColor: "#ff5252" },
+                    "&:disabled": { backgroundColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" },
+                  }}
+                >
+                  {locking ? "Bloqueando..." : "🔒 Bloquear Configuración Completa (persistente)"}
+                </Button>
+              )}
+
+              {riskManagement.isLocked && (
+                <Alert severity="success" sx={{ backgroundColor: "rgba(76,175,80,0.1)", mt: 3 }}>
+                  <Typography variant="body2">
+                    {"✅ Configuración completa bloqueada el "}
+                    {riskManagement.lockedAt ? new Date(riskManagement.lockedAt).toLocaleString() : "N/A"}
+                  </Typography>
+                </Alert>
+              )}
+            </Card>
           </Box>
         )}
 
-        {/* PESTAÑA 2: CONFLUENCIAS IA - MEJORADA */}
+        {/* PESTAÑA 2: CONFLUENCIAS IA - REORGANIZADA */}
         {settingsTab === 2 && (
           <Box sx={{ p: 3 }}>
-            {/* Sección 1: Configuración General */}
+            {/* Sección Tipo de Trader */}
+            <Card
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(0,255,255,0.2)",
+                p: 3,
+                mb: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 2, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
+                {"👤 Tipo de Trader"}
+              </Typography>
+
+              <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(33,150,243,0.1)", color: "#ffffff" }}>
+                <Typography variant="body2">
+                  {
+                    "Selecciona tu tipo de trader. Esto determinará automáticamente las temporalidades disponibles y seleccionará una aleatoriamente para el análisis."
+                  }
+                </Typography>
+              </Alert>
+
+              <Box
+                sx={{
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: "rgba(0,255,136,0.1)",
+                  borderRadius: 1,
+                  border: "1px solid rgba(0,255,136,0.3)",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#00ff88", fontWeight: "bold", mb: 1 }}>
+                  {"Tipo Seleccionado:"}
+                </Typography>
+                <Chip
+                  label={TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.label || "Day Trading"}
+                  sx={{ backgroundColor: "#00ff88", color: "#000000", fontWeight: "bold", mr: 2 }}
+                />
+                <Chip
+                  label={`Temporalidad: ${aiSettings.analysisTimeframe || "H1"} (Auto-seleccionada)`}
+                  sx={{ backgroundColor: "rgba(0,255,255,0.7)", color: "#000000", fontWeight: "bold" }}
+                />
+              </Box>
+
+              <Grid container spacing={2}>
+                {TRADING_STRATEGIES.map((strategy) => (
+                  <Grid item xs={12} md={6} key={strategy.key}>
+                    <Card
+                      sx={{
+                        p: 2.5,
+                        height: "100%",
+                        backgroundColor:
+                          selectedStrategy === strategy.key ? "rgba(0,255,136,0.15)" : "rgba(255,255,255,0.02)",
+                        border:
+                          selectedStrategy === strategy.key
+                            ? "2px solid rgba(0,255,136,0.5)"
+                            : "1px solid rgba(255,255,255,0.1)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          backgroundColor: "rgba(0,255,255,0.08)",
+                          transform: "translateY(-2px)",
+                        },
+                      }}
+                      onClick={() => handleStrategyChange(strategy.key)}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                        <Box
+                          sx={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: "50%",
+                            border: "2px solid",
+                            borderColor: selectedStrategy === strategy.key ? "#00ff88" : "rgba(255,255,255,0.5)",
+                            backgroundColor: selectedStrategy === strategy.key ? "#00ff88" : "transparent",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            mt: 0.5,
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          {selectedStrategy === strategy.key && (
+                            <Box
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                backgroundColor: "#000000",
+                              }}
+                            />
+                          )}
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle1" sx={{ color: "#ffffff", fontWeight: "bold", mb: 1 }}>
+                            {strategy.label}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.4, mb: 2 }}>
+                            {strategy.description}
+                          </Typography>
+                          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1 }}>
+                            <Chip
+                              label={`Riesgo: ${strategy.riskLevel}`}
+                              size="small"
+                              sx={{
+                                backgroundColor:
+                                  strategy.riskLevel === "Alto"
+                                    ? "rgba(255,107,107,0.2)"
+                                    : strategy.riskLevel === "Medio-Alto"
+                                      ? "rgba(255,193,7,0.2)"
+                                      : strategy.riskLevel === "Medio"
+                                        ? "rgba(33,150,243,0.2)"
+                                        : "rgba(76,175,80,0.2)",
+                                color: "#ffffff",
+                              }}
+                            />
+                          </Box>
+                          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)" }}>
+                            {"Temporalidades disponibles: " + strategy.timeframes.join(", ")}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Card>
+
+            <Card
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,165,0,0.2)",
+                p: 3,
+                mb: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 2, color: "#ffa500", display: "flex", alignItems: "center", gap: 1 }}>
+                {"📊 Estrategias de Trading"}
+              </Typography>
+
+              <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(255,165,0,0.1)", color: "#ffffff" }}>
+                <Typography variant="body2">
+                  {
+                    "Selecciona la estrategia de trading específica que deseas utilizar. Cada estrategia tiene sus propias características y temporalidades recomendadas."
+                  }
+                </Typography>
+              </Alert>
+
+              <Box
+                sx={{
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: "rgba(255,165,0,0.1)",
+                  borderRadius: 1,
+                  border: "1px solid rgba(255,165,0,0.3)",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#ffa500", fontWeight: "bold", mb: 1 }}>
+                  {"Estrategia Seleccionada:"}
+                </Typography>
+                <Chip
+                  label={
+                    TRADING_STRATEGIES_ADVANCED.find((s) => s.key === (aiSettings.selectedTradingStrategy || "maleta"))
+                      ?.label || "Estrategia Maleta"
+                  }
+                  sx={{ backgroundColor: "#ffa500", color: "#000000", fontWeight: "bold", mr: 2 }}
+                />
+                <Chip
+                  label={`Temporalidades: ${TRADING_STRATEGIES_ADVANCED.find((s) => s.key === (aiSettings.selectedTradingStrategy || "maleta"))?.timeframes.join(", ") || "M15, M30, H1, H4"}`}
+                  sx={{ backgroundColor: "rgba(255,165,0,0.7)", color: "#000000", fontWeight: "bold" }}
+                />
+              </Box>
+
+              <Grid container spacing={2}>
+                {TRADING_STRATEGIES_ADVANCED.map((strategy) => (
+                  <Grid item xs={12} md={6} key={strategy.key}>
+                    <Card
+                      sx={{
+                        p: 2.5,
+                        height: "100%",
+                        backgroundColor:
+                          (aiSettings.selectedTradingStrategy || "maleta") === strategy.key
+                            ? "rgba(255,165,0,0.15)"
+                            : "rgba(255,255,255,0.02)",
+                        border:
+                          (aiSettings.selectedTradingStrategy || "maleta") === strategy.key
+                            ? "2px solid rgba(255,165,0,0.5)"
+                            : "1px solid rgba(255,255,255,0.1)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          backgroundColor: "rgba(255,165,0,0.08)",
+                          transform: "translateY(-2px)",
+                        },
+                      }}
+                      onClick={() => {
+                        setAiSettings((prev) => ({
+                          ...prev,
+                          selectedTradingStrategy: strategy.key,
+                        }))
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                        <Typography variant="h4" sx={{ fontSize: "2rem" }}>
+                          {strategy.icon}
+                        </Typography>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="h6" sx={{ color: "#ffffff", mb: 1, fontWeight: "bold" }}>
+                            {strategy.label}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "#cccccc", mb: 2, lineHeight: 1.4 }}>
+                            {strategy.description}
+                          </Typography>
+                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                            {strategy.timeframes.map((tf) => (
+                              <Chip
+                                key={tf}
+                                label={tf}
+                                size="small"
+                                sx={{
+                                  backgroundColor: "rgba(255,165,0,0.2)",
+                                  color: "#ffa500",
+                                  fontSize: "0.7rem",
+                                }}
+                              />
+                            ))}
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Card>
+
+            {/* Configuración General de Confluencias */}
             <Card
               sx={{
                 backgroundColor: "rgba(255,255,255,0.05)",
@@ -958,26 +1678,36 @@ export default function SettingsDialog({
                 {"🎯 Configuración General de Confluencias"}
               </Typography>
 
+              <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(33,150,243,0.1)", color: "#ffffff" }}>
+                <Typography variant="body2">
+                  {`Selecciona la temporalidad de análisis de las opciones combinadas disponibles para ${TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.label || "Day Trading"} y ${TRADING_STRATEGIES_ADVANCED.find((s) => s.key === (aiSettings.selectedTradingStrategy || "maleta"))?.label || "Estrategia Maleta"}. Temporalidades disponibles: ${getCombinedTimeframes().join(", ")}`}
+                </Typography>
+              </Alert>
+
               <Grid container spacing={3}>
                 <Grid item xs={12} md={4}>
                   <FormControl fullWidth>
-                    <InputLabel sx={{ color: "#00ffff" }}>{"Temporalidad para Análisis IA"}</InputLabel>
+                    <InputLabel sx={{ color: "#00ffff" }}>{"Temporalidad de Análisis"}</InputLabel>
                     <Select
-                      value={aiSettings.analysisTimeframe || "H1"}
+                      value={aiSettings.analysisTimeframe || getCombinedTimeframes()[0] || "H1"}
                       onChange={(e) =>
                         setAiSettings((prev) => ({
                           ...prev,
                           analysisTimeframe: e.target.value,
                         }))
                       }
-                      sx={{
-                        color: "#ffffff",
-                        "& .MuiOutlinedInput-notchedOutline": { borderColor: "rgba(0,255,255,0.3)" },
-                      }}
+                      sx={{ color: "#ffffff" }}
                     >
-                      {tfOptions.map((tf) => (
-                        <MenuItem key={tf.value} value={tf.value}>
-                          {tf.label}
+                      {getCombinedTimeframes().map((timeframe) => (
+                        <MenuItem key={timeframe} value={timeframe}>
+                          {timeframe === "M1" && "1 Minuto"}
+                          {timeframe === "M5" && "5 Minutos"}
+                          {timeframe === "M15" && "15 Minutos"}
+                          {timeframe === "M30" && "30 Minutos"}
+                          {timeframe === "H1" && "1 Hora"}
+                          {timeframe === "H4" && "4 Horas"}
+                          {timeframe === "D1" && "1 Día"}
+                          {timeframe === "W1" && "1 Semana"}
                         </MenuItem>
                       ))}
                     </Select>
@@ -1016,29 +1746,29 @@ export default function SettingsDialog({
                       display: "flex",
                       flexDirection: "column",
                       justifyContent: "center",
-                      mt: -6,
-                      mb: 2
                     }}
                   >
                     <Typography variant="body2" sx={{ color: "#9c27b0", mb: 1, fontWeight: "bold" }}>
                       {"Configuración Actual:"}
                     </Typography>
                     <Chip
-                      label={`${aiSettings.analysisTimeframe || "H1"} - ${
-                        tfOptions.find((tf) => tf.value === (aiSettings.analysisTimeframe || "H1"))?.label || "1 Hora"
-                      }`}
+                      label={`Tipo: ${TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.label || "Day Trading"}`}
                       sx={{ backgroundColor: "#9c27b0", color: "#ffffff", mb: 1 }}
                     />
                     <Chip
+                      label={`Temporalidad: ${aiSettings.analysisTimeframe || TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.timeframes[0] || "H1"}`}
+                      sx={{ backgroundColor: "rgba(156,39,176,0.7)", color: "#ffffff", mb: 1 }}
+                    />
+                    <Chip
                       label={`Umbral: ${((aiSettings.confluenceThreshold ?? 0.6) * 100).toFixed(0)}%`}
-                      sx={{ backgroundColor: "rgba(156,39,176,0.7)", color: "#ffffff" }}
+                      sx={{ backgroundColor: "rgba(156,39,176,0.5)", color: "#ffffff" }}
                     />
                   </Box>
                 </Grid>
               </Grid>
             </Card>
 
-            {/* Sección 2: Análisis Técnicos */}
+            {/* Sección 3: Análisis Técnicos */}
             <Card
               sx={{
                 backgroundColor: "rgba(255,255,255,0.05)",
@@ -1131,7 +1861,7 @@ export default function SettingsDialog({
               </Grid>
             </Card>
 
-            {/* Sección 3: Pesos de Análisis */}
+            {/* Sección 4: Pesos de Análisis */}
             <Card
               sx={{
                 backgroundColor: "rgba(255,255,255,0.05)",
@@ -1226,7 +1956,7 @@ export default function SettingsDialog({
               </Box>
             </Card>
 
-            {/* Sección 4: Tipos de Ejecución */}
+            {/* Sección 5: Tipos de Ejecución */}
             <Card
               sx={{
                 backgroundColor: "rgba(255,255,255,0.05)",
@@ -1477,91 +2207,19 @@ export default function SettingsDialog({
           </Box>
         )}
 
-        {/* PESTAÑA 3: TIEMPO REAL */}
+        {/* PESTAÑA 3: EJECUCIÓN AUTOMÁTICA */}
         {settingsTab === 3 && (
           <Box sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 2, color: "#00ffff" }}>
-              {"⚡ Configuración de Tiempo Real"}
-            </Typography>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Intervalo de Actualización (ms)"
-                  type="number"
-                  value={realtimeSettings.updateInterval}
-                  onChange={(e) =>
-                    setRealtimeSettings((prev) => ({
-                      ...prev,
-                      updateInterval: Number.parseInt(e.target.value) || 1000,
-                    }))
-                  }
-                  sx={{
-                    mb: 2,
-                    "& .MuiInputLabel-root": { color: "#00ffff" },
-                    "& .MuiOutlinedInput-root": { color: "#ffffff" },
-                  }}
-                  helperText="Menor valor = mayor frecuencia (mínimo 500ms)"
-                />
-                <TextField
-                  fullWidth
-                  label="Máximo Intentos de Reconexión"
-                  type="number"
-                  value={realtimeSettings.maxRetries}
-                  onChange={(e) =>
-                    setRealtimeSettings((prev) => ({
-                      ...prev,
-                      maxRetries: Number.parseInt(e.target.value) || 3,
-                    }))
-                  }
-                  sx={{
-                    mb: 2,
-                    "& .MuiInputLabel-root": { color: "#00ffff" },
-                    "& .MuiOutlinedInput-root": { color: "#ffffff" },
-                  }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={!!realtimeSettings.enableTickByTick}
-                      onChange={(e) =>
-                        setRealtimeSettings((prev) => ({
-                          ...prev,
-                          enableTickByTick: e.target.checked,
-                        }))
-                      }
-                      sx={{
-                        "& .MuiSwitch-switchBase.Mui-checked": { color: "#00ff88" },
-                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#00ff88" },
-                      }}
-                    />
-                  }
-                  label="Habilitar Tick-by-Tick"
-                  sx={{ color: "#ffffff", mb: 1 }}
-                />
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={!!realtimeSettings.autoReconnect}
-                      onChange={(e) =>
-                        setRealtimeSettings((prev) => ({
-                          ...prev,
-                          autoReconnect: e.target.checked,
-                        }))
-                      }
-                      sx={{
-                        "& .MuiSwitch-switchBase.Mui-checked": { color: "#00ff88" },
-                        "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#00ff88" },
-                      }}
-                    />
-                  }
-                  label="Reconexión Automática"
-                  sx={{ color: "#ffffff", mb: 1 }}
-                />
-              </Grid>
-            </Grid>
+            <AutoTradingComponent
+              autoTradingActive={autoTradingActive}
+              autoTradingSettings={autoTradingSettings}
+              isConnected={isConnected}
+              riskManagement={riskManagement}
+              selectedTimeZone={selectedTimeZone}
+              onAutoTradingToggle={handleAutoTradingToggle}
+              onSettingsChange={setAutoTradingSettings}
+              showSnackbar={showSnackbar}
+            />
           </Box>
         )}
       </DialogContent>

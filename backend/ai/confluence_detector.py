@@ -18,14 +18,362 @@ class ConfluencePoint:
     analyses: List[str]  # Tipos de análisis que confluyen
     description: str
 
+class TradingStrategyComponent:
+    """Componente base para estrategias de trading"""
+    
+    def __init__(self, name: str, timeframes: List[str], description: str):
+        self.name = name
+        self.timeframes = timeframes
+        self.description = description
+        self.logger = logging.getLogger(__name__)
+    
+    async def analyze(self, df: pd.DataFrame, config=None) -> Optional[Dict]:
+        """Método base para análisis de estrategia"""
+        raise NotImplementedError("Subclasses must implement analyze method")
+    
+    def get_weight_multiplier(self, timeframe: str) -> float:
+        """Obtener multiplicador de peso según temporalidad"""
+        if timeframe in self.timeframes:
+            return 1.0
+        return 0.5  # Peso reducido para temporalidades no óptimas
+
+class MaletaStrategy(TradingStrategyComponent):
+    """Estrategia Maleta de Jhonatan Nuñez"""
+    
+    def __init__(self):
+        super().__init__(
+            name="Maleta",
+            timeframes=["M15", "M30", "H1", "H4"],
+            description="Estrategia Maleta con indicador Stochastic JR"
+        )
+    
+    async def analyze(self, df: pd.DataFrame, config=None) -> Optional[Dict]:
+        """Análisis específico de la estrategia Maleta"""
+        try:
+            # Calcular Stochastic personalizado para Maleta
+            stoch_k, stoch_d = self._calculate_maleta_stochastic(df)
+            
+            # Detectar señales de la estrategia Maleta
+            signals = []
+            current_k = stoch_k.iloc[-1]
+            current_d = stoch_d.iloc[-1]
+            prev_k = stoch_k.iloc[-2]
+            prev_d = stoch_d.iloc[-2]
+            
+            # Señal de compra: Stochastic sale de sobreventa
+            if current_k > 20 and prev_k <= 20 and current_k > current_d:
+                signals.append({
+                    'type': 'buy',
+                    'strength': 0.8,
+                    'price': float(df['Close'].iloc[-1]),
+                    'reason': 'Stochastic Maleta salida de sobreventa'
+                })
+            
+            # Señal de venta: Stochastic sale de sobrecompra
+            if current_k < 80 and prev_k >= 80 and current_k < current_d:
+                signals.append({
+                    'type': 'sell',
+                    'strength': 0.8,
+                    'price': float(df['Close'].iloc[-1]),
+                    'reason': 'Stochastic Maleta salida de sobrecompra'
+                })
+            
+            if not signals:
+                return None
+            
+            return {
+                'strategy': 'Maleta',
+                'signals': signals,
+                'stochastic_k': float(current_k),
+                'stochastic_d': float(current_d),
+                'confidence': max(signal['strength'] for signal in signals),
+                'description': f"Estrategia Maleta: {len(signals)} señales detectadas"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error en análisis Maleta: {e}")
+            return None
+    
+    def _calculate_maleta_stochastic(self, df: pd.DataFrame, k_period=14, d_period=3) -> Tuple[pd.Series, pd.Series]:
+        """Calcular Stochastic personalizado para estrategia Maleta"""
+        high = df['High']
+        low = df['Low']
+        close = df['Close']
+        
+        # Calcular %K
+        lowest_low = low.rolling(window=k_period).min()
+        highest_high = high.rolling(window=k_period).max()
+        k_percent = 100 * ((close - lowest_low) / (highest_high - lowest_low))
+        
+        # Calcular %D (media móvil de %K)
+        d_percent = k_percent.rolling(window=d_period).mean()
+        
+        return k_percent, d_percent
+
+class SwingTradingStrategy(TradingStrategyComponent):
+    """Estrategia de Swing Trading"""
+    
+    def __init__(self):
+        super().__init__(
+            name="Swing Trading",
+            timeframes=["H4", "D1", "W1"],
+            description="Estrategia de swing trading con análisis de tendencia"
+        )
+    
+    async def analyze(self, df: pd.DataFrame, config=None) -> Optional[Dict]:
+        """Análisis específico de swing trading"""
+        try:
+            # Calcular medias móviles para tendencia
+            ma_20 = df['Close'].rolling(window=20).mean()
+            ma_50 = df['Close'].rolling(window=50).mean()
+            
+            # Calcular RSI
+            rsi = self._calculate_rsi(df['Close'])
+            
+            signals = []
+            current_price = float(df['Close'].iloc[-1])
+            current_ma20 = ma_20.iloc[-1]
+            current_ma50 = ma_50.iloc[-1]
+            current_rsi = rsi.iloc[-1]
+            
+            # Señal de compra swing
+            if (current_ma20 > current_ma50 and 
+                current_price > current_ma20 and 
+                30 < current_rsi < 70):
+                signals.append({
+                    'type': 'buy',
+                    'strength': 0.75,
+                    'price': current_price,
+                    'reason': 'Swing trading: tendencia alcista confirmada'
+                })
+            
+            # Señal de venta swing
+            if (current_ma20 < current_ma50 and 
+                current_price < current_ma20 and 
+                30 < current_rsi < 70):
+                signals.append({
+                    'type': 'sell',
+                    'strength': 0.75,
+                    'price': current_price,
+                    'reason': 'Swing trading: tendencia bajista confirmada'
+                })
+            
+            if not signals:
+                return None
+            
+            return {
+                'strategy': 'Swing Trading',
+                'signals': signals,
+                'ma_20': float(current_ma20),
+                'ma_50': float(current_ma50),
+                'rsi': float(current_rsi),
+                'confidence': max(signal['strength'] for signal in signals),
+                'description': f"Swing Trading: {len(signals)} señales detectadas"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error en análisis Swing Trading: {e}")
+            return None
+    
+    def _calculate_rsi(self, prices: pd.Series, period=14) -> pd.Series:
+        """Calcular RSI"""
+        delta = prices.diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+        rs = gain / loss
+        rsi = 100 - (100 / (1 + rs))
+        return rsi
+
+class ScalpingStrategy(TradingStrategyComponent):
+    """Estrategia de Scalping"""
+    
+    def __init__(self):
+        super().__init__(
+            name="Scalping",
+            timeframes=["M1", "M5"],
+            description="Estrategia de scalping con análisis de momentum"
+        )
+    
+    async def analyze(self, df: pd.DataFrame, config=None) -> Optional[Dict]:
+        """Análisis específico de scalping"""
+        try:
+            # Calcular EMA rápidas para scalping
+            ema_5 = df['Close'].ewm(span=5).mean()
+            ema_10 = df['Close'].ewm(span=10).mean()
+            
+            # Calcular MACD para momentum
+            macd_line, macd_signal, macd_histogram = self._calculate_macd(df['Close'])
+            
+            signals = []
+            current_price = float(df['Close'].iloc[-1])
+            current_ema5 = ema_5.iloc[-1]
+            current_ema10 = ema_10.iloc[-1]
+            current_macd = macd_line.iloc[-1]
+            current_signal = macd_signal.iloc[-1]
+            
+            # Señal de compra scalping
+            if (current_ema5 > current_ema10 and 
+                current_macd > current_signal and
+                current_macd > 0):
+                signals.append({
+                    'type': 'buy',
+                    'strength': 0.85,
+                    'price': current_price,
+                    'reason': 'Scalping: momentum alcista confirmado'
+                })
+            
+            # Señal de venta scalping
+            if (current_ema5 < current_ema10 and 
+                current_macd < current_signal and
+                current_macd < 0):
+                signals.append({
+                    'type': 'sell',
+                    'strength': 0.85,
+                    'price': current_price,
+                    'reason': 'Scalping: momentum bajista confirmado'
+                })
+            
+            if not signals:
+                return None
+            
+            return {
+                'strategy': 'Scalping',
+                'signals': signals,
+                'ema_5': float(current_ema5),
+                'ema_10': float(current_ema10),
+                'macd': float(current_macd),
+                'confidence': max(signal['strength'] for signal in signals),
+                'description': f"Scalping: {len(signals)} señales detectadas"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error en análisis Scalping: {e}")
+            return None
+    
+    def _calculate_macd(self, prices: pd.Series, fast=12, slow=26, signal=9):
+        """Calcular MACD"""
+        ema_fast = prices.ewm(span=fast).mean()
+        ema_slow = prices.ewm(span=slow).mean()
+        macd_line = ema_fast - ema_slow
+        macd_signal = macd_line.ewm(span=signal).mean()
+        macd_histogram = macd_line - macd_signal
+        return macd_line, macd_signal, macd_histogram
+
+class PositionTradingStrategy(TradingStrategyComponent):
+    """Estrategia de Position Trading"""
+    
+    def __init__(self):
+        super().__init__(
+            name="Position Trading",
+            timeframes=["D1", "W1", "MN1"],
+            description="Estrategia de position trading con análisis de tendencia a largo plazo"
+        )
+    
+    async def analyze(self, df: pd.DataFrame, config=None) -> Optional[Dict]:
+        """Análisis específico de position trading"""
+        try:
+            # Calcular medias móviles de largo plazo
+            ma_50 = df['Close'].rolling(window=50).mean()
+            ma_200 = df['Close'].rolling(window=200).mean()
+            
+            # Calcular ADX para fuerza de tendencia
+            adx = self._calculate_adx(df)
+            
+            signals = []
+            current_price = float(df['Close'].iloc[-1])
+            current_ma50 = ma_50.iloc[-1]
+            current_ma200 = ma_200.iloc[-1]
+            current_adx = adx.iloc[-1]
+            
+            # Señal de compra position trading
+            if (current_ma50 > current_ma200 and 
+                current_price > current_ma50 and 
+                current_adx > 25):
+                signals.append({
+                    'type': 'buy',
+                    'strength': 0.7,
+                    'price': current_price,
+                    'reason': 'Position Trading: tendencia alcista fuerte a largo plazo'
+                })
+            
+            # Señal de venta position trading
+            if (current_ma50 < current_ma200 and 
+                current_price < current_ma50 and 
+                current_adx > 25):
+                signals.append({
+                    'type': 'sell',
+                    'strength': 0.7,
+                    'price': current_price,
+                    'reason': 'Position Trading: tendencia bajista fuerte a largo plazo'
+                })
+            
+            if not signals:
+                return None
+            
+            return {
+                'strategy': 'Position Trading',
+                'signals': signals,
+                'ma_50': float(current_ma50),
+                'ma_200': float(current_ma200),
+                'adx': float(current_adx),
+                'confidence': max(signal['strength'] for signal in signals),
+                'description': f"Position Trading: {len(signals)} señales detectadas"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error en análisis Position Trading: {e}")
+            return None
+    
+    def _calculate_adx(self, df: pd.DataFrame, period=14) -> pd.Series:
+        """Calcular ADX (Average Directional Index)"""
+        high = df['High']
+        low = df['Low']
+        close = df['Close']
+        
+        # Calcular True Range
+        tr1 = high - low
+        tr2 = abs(high - close.shift(1))
+        tr3 = abs(low - close.shift(1))
+        tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
+        
+        # Calcular Directional Movement
+        dm_plus = high.diff()
+        dm_minus = low.diff() * -1
+        
+        dm_plus[dm_plus < 0] = 0
+        dm_minus[dm_minus < 0] = 0
+        
+        # Suavizar con media móvil
+        tr_smooth = tr.rolling(window=period).mean()
+        dm_plus_smooth = dm_plus.rolling(window=period).mean()
+        dm_minus_smooth = dm_minus.rolling(window=period).mean()
+        
+        # Calcular DI+ y DI-
+        di_plus = 100 * (dm_plus_smooth / tr_smooth)
+        di_minus = 100 * (dm_minus_smooth / tr_smooth)
+        
+        # Calcular ADX
+        dx = 100 * abs(di_plus - di_minus) / (di_plus + di_minus)
+        adx = dx.rolling(window=period).mean()
+        
+        return adx
+
 class ConfluenceDetector:
-    """Detector principal de confluencias para señales de trading"""
+    """Detector principal de confluencias para señales de trading con estrategias personalizadas"""
     
     def __init__(self):
         self.elliott_analyzer = ElliottWaveAnalyzer()
         self.pattern_detector = ChartPatternDetector()
         self.fibonacci_analyzer = FibonacciAnalyzer()
         self.logger = logging.getLogger(__name__)
+        
+        # ✅ NUEVO: Inicializar componentes de estrategias
+        self.strategy_components = {
+            'maleta': MaletaStrategy(),
+            'swing_trading': SwingTradingStrategy(),
+            'scalping': ScalpingStrategy(),
+            'position_trading': PositionTradingStrategy()
+        }
         
         # Configuración de pesos para diferentes análisis (por defecto)
         self.analysis_weights = {
@@ -58,6 +406,12 @@ class ConfluenceDetector:
                     AnalysisType.SUPPORT_RESISTANCE: config.support_resistance_weight
                 }
                 self.logger.info(f"Usando configuración personalizada: confluencia={min_confluence_score}")
+                
+                # ✅ NUEVO: Log de tipo de trader y estrategia
+                if hasattr(config, 'trader_type') and config.trader_type:
+                    self.logger.info(f"Tipo de trader: {config.trader_type}")
+                if hasattr(config, 'trading_strategy') and config.trading_strategy:
+                    self.logger.info(f"Estrategia de trading: {config.trading_strategy}")
             else:
                 min_confluence_score = self.min_confluence_score
                 analysis_weights = self.analysis_weights
@@ -66,6 +420,14 @@ class ConfluenceDetector:
             
             # ✅ MODIFICADO: Realizar análisis filtrados según configuración
             analyses = await self._perform_filtered_analyses(df, symbol, timeframe, config)
+            
+            # ✅ NUEVO: Agregar análisis de estrategia específica
+            if config and hasattr(config, 'trading_strategy') and config.trading_strategy:
+                strategy_analysis = await self._perform_strategy_analysis(
+                    df, config.trading_strategy, timeframe, config
+                )
+                if strategy_analysis:
+                    analyses.append(strategy_analysis)
             
             if not analyses:
                 self.logger.info(f"No se encontraron análisis válidos para {symbol}")
@@ -97,6 +459,44 @@ class ConfluenceDetector:
             self.logger.error(f"Error analizando {symbol}: {e}")
             return None
     
+    async def _perform_strategy_analysis(self, 
+                                       df: pd.DataFrame, 
+                                       strategy_name: str, 
+                                       timeframe: str,
+                                       config=None) -> Optional[TechnicalAnalysis]:
+        """✅ NUEVO: Realizar análisis específico de estrategia"""
+        try:
+            strategy_key = strategy_name.lower().replace(' ', '_')
+            
+            if strategy_key not in self.strategy_components:
+                self.logger.warning(f"Estrategia no encontrada: {strategy_name}")
+                return None
+            
+            strategy_component = self.strategy_components[strategy_key]
+            
+            # Obtener multiplicador de peso según temporalidad
+            weight_multiplier = strategy_component.get_weight_multiplier(timeframe)
+            
+            # Realizar análisis de la estrategia
+            strategy_result = await strategy_component.analyze(df, config)
+            
+            if not strategy_result:
+                return None
+            
+            # Ajustar confianza según temporalidad óptima
+            adjusted_confidence = strategy_result['confidence'] * weight_multiplier
+            
+            return TechnicalAnalysis(
+                type=AnalysisType.CHART_PATTERN,  # Usar tipo existente
+                confidence=adjusted_confidence,
+                data=strategy_result,
+                description=f"Estrategia {strategy_name}: {strategy_result['description']}"
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Error en análisis de estrategia {strategy_name}: {e}")
+            return None
+    
     async def _perform_filtered_analyses(self, 
                                        df: pd.DataFrame, 
                                        symbol: str, 
@@ -111,6 +511,9 @@ class ConfluenceDetector:
         enable_patterns = config.enable_chart_patterns if config else True
         enable_sr = config.enable_support_resistance if config else True
         
+        # ✅ NUEVO: Aplicar multiplicadores según tipo de trader
+        trader_multiplier = self._get_trader_type_multiplier(timeframe, config)
+        
         # Análisis de ondas de Elliott
         if enable_elliott:
             try:
@@ -119,10 +522,13 @@ class ConfluenceDetector:
                     description = elliott_result.get('description', 'Análisis Elliott Wave')
                     if description is None:
                         description = 'Análisis Elliott Wave'
+                    
+                    # Aplicar multiplicador de tipo de trader
+                    adjusted_confidence = elliott_result.get('confidence', 0.5) * trader_multiplier
                         
                     analyses.append(TechnicalAnalysis(
                         type=AnalysisType.ELLIOTT_WAVE,
-                        confidence=elliott_result.get('confidence', 0.5),
+                        confidence=min(adjusted_confidence, 1.0),
                         data=elliott_result,
                         description=description
                     ))
@@ -137,10 +543,13 @@ class ConfluenceDetector:
                     description = pattern.get('description', 'Patrón chartista detectado')
                     if description is None:
                         description = 'Patrón chartista detectado'
+                    
+                    # Aplicar multiplicador de tipo de trader
+                    adjusted_confidence = pattern.get('confidence', 0.5) * trader_multiplier
                         
                     analyses.append(TechnicalAnalysis(
                         type=AnalysisType.CHART_PATTERN,
-                        confidence=pattern.get('confidence', 0.5),
+                        confidence=min(adjusted_confidence, 1.0),
                         data=pattern,
                         description=description
                     ))
@@ -161,10 +570,13 @@ class ConfluenceDetector:
                     description = fib_result.get('description', 'Análisis Fibonacci')
                     if description is None:
                         description = 'Análisis Fibonacci'
+                    
+                    # Aplicar multiplicador de tipo de trader
+                    adjusted_confidence = fib_result.get('confidence', 0.5) * trader_multiplier
                         
                     analyses.append(TechnicalAnalysis(
                         type=AnalysisType.FIBONACCI,
-                        confidence=fib_result.get('confidence', 0.5),
+                        confidence=min(adjusted_confidence, 1.0),
                         data=fib_result,
                         description=description
                     ))
@@ -176,9 +588,12 @@ class ConfluenceDetector:
             try:
                 sr_result = await self._analyze_support_resistance(df)
                 if sr_result:
+                    # Aplicar multiplicador de tipo de trader
+                    adjusted_confidence = sr_result['confidence'] * trader_multiplier
+                    
                     analyses.append(TechnicalAnalysis(
                         type=AnalysisType.SUPPORT_RESISTANCE,
-                        confidence=sr_result['confidence'],
+                        confidence=min(adjusted_confidence, 1.0),
                         data=sr_result,
                         description=sr_result['description']
                     ))
@@ -186,6 +601,31 @@ class ConfluenceDetector:
                 self.logger.warning(f"Error en análisis S/R: {e}")
         
         return analyses
+    
+    def _get_trader_type_multiplier(self, timeframe: str, config=None) -> float:
+        """✅ NUEVO: Obtener multiplicador según tipo de trader y temporalidad"""
+        if not config or not hasattr(config, 'trader_type') or not config.trader_type:
+            return 1.0
+        
+        # Mapeo de tipos de trader y sus temporalidades óptimas
+        trader_timeframes = {
+            'scalping': ['M1', 'M5'],
+            'day_trading': ['M5', 'M15', 'M30', 'H1'],
+            'swing_trading': ['H1', 'H4', 'D1'],
+            'position_trading': ['D1', 'W1', 'MN1']
+        }
+        
+        trader_type = config.trader_type.lower()
+        optimal_timeframes = trader_timeframes.get(trader_type, [])
+        
+        # Si la temporalidad es óptima para el tipo de trader, multiplicador completo
+        if timeframe in optimal_timeframes:
+            return 1.0
+        
+        # Si no es óptima, reducir el multiplicador
+        return 0.7
+    
+    # ... [Resto de métodos del archivo original se mantienen igual] ...
     
     async def _basic_fibonacci_analysis(self, df: pd.DataFrame) -> Optional[Dict]:
         """Análisis básico de Fibonacci como fallback"""
@@ -288,8 +728,22 @@ class ConfluenceDetector:
                             })
             
             elif analysis.type == AnalysisType.CHART_PATTERN:
-                # Extraer objetivos de patrones
-                if isinstance(analysis.data, dict) and 'target' in analysis.data:
+                # ✅ NUEVO: Manejar análisis de estrategias específicas
+                if isinstance(analysis.data, dict) and 'strategy' in analysis.data:
+                    # Es un análisis de estrategia específica
+                    strategy_data = analysis.data
+                    if 'signals' in strategy_data:
+                        for signal in strategy_data['signals']:
+                            if isinstance(signal, dict) and 'price' in signal:
+                                levels.append({
+                                    'price': signal['price'],
+                                    'type': f"strategy_{strategy_data['strategy'].lower()}",
+                                    'confidence': analysis.confidence,
+                                    'analysis': f"Estrategia {strategy_data['strategy']}"
+                                })
+                
+                # Extraer objetivos de patrones tradicionales
+                elif isinstance(analysis.data, dict) and 'target' in analysis.data:
                     levels.append({
                         'price': analysis.data['target'],
                         'type': f"pattern_{analysis.data.get('pattern_type', 'unknown')}",

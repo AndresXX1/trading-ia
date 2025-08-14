@@ -39,36 +39,75 @@ class AnalysisType(str, Enum):
     CHART_PATTERN = "chart_pattern"
     FIBONACCI = "fibonacci"
     SUPPORT_RESISTANCE = "support_resistance"
+    
+class ExecutionType(str, Enum):
+    MARKET = "market"
+    LIMIT = "limit" 
+    STOP = "stop"
 
+class TraderType(str, Enum):
+    SCALPING = "scalping"
+    DAY_TRADING = "day_trading"
+    SWING_TRADING = "swing_trading"
+    POSITION_TRADING = "position_trading"
+
+class TradingStrategy(str, Enum):
+    MALETA = "maleta"
+    SWING_TRADING = "swing_trading"
+    POSITION_TRADING = "position_trading"
+    ALGORITHMIC = "algorithmic"
+    ALGORITHMIC_TRADING = "algorithmic_trading"  # Agregado para compatibilidad
+    PAIRS_TRADING = "pairs_trading"
+    MEAN_REVERSION = "mean_reversion"
+    SOCIAL_TRADING = "social_trading"
+    CARRY_TRADE = "carry_trade"
+    HEDGING = "hedging"
+    PYRAMIDING = "pyramiding"
 
 class AnalysisConfig(BaseModel):
     """Configuración para el análisis de confluencias"""
     # Configuración básica
-    confluence_threshold: float = 0.6  # Umbral mínimo de confluencia
-    risk_per_trade: float = 2.0  # Riesgo por operación en %
-    lot_size: float = 0.1  # Tamaño del lote
-    atr_multiplier_sl: float = 2.0  # Multiplicador ATR para stop loss
-    risk_reward_ratio: float = 2.0  # Relación riesgo/beneficio
+    confluence_threshold: float = 0.6
+    risk_per_trade: float = 2.0
+    lot_size: float = 0.1
+    atr_multiplier_sl: float = 2.0
+    risk_reward_ratio: float = 2.0
     
     # Análisis habilitados
     enable_elliott_wave: bool = True
     enable_fibonacci: bool = True
     enable_chart_patterns: bool = True
     enable_support_resistance: bool = True
-
-        # Gestión de riesgo (compat: risk_percentage vs risk_per_trade)
-    risk_percentage: Optional[float] = None
-
-    # Timeframe en el body
+    
+    # Timeframe
     timeframe: str = "H1"
     
-    # Pesos personalizados (opcional)
+    # Tipo de trader y estrategia
+    trader_type: Optional[TraderType] = None
+    trader_timeframes: List[str] = ["H1"]
+    trading_strategy: Optional[TradingStrategy] = None
+    strategy_timeframes: List[str] = ["H1"]
+    
+    # Pesos personalizados
     elliott_wave_weight: float = 0.25
     fibonacci_weight: float = 0.25
     chart_patterns_weight: float = 0.30
     support_resistance_weight: float = 0.20
     
-
+    # Configuración de ejecución
+    execution_type: ExecutionType = ExecutionType.MARKET
+    allowed_execution_types: List[ExecutionType] = [ExecutionType.MARKET]
+    
+    # Gestión de riesgo
+    total_capital: Optional[float] = None
+    risk_percentage: Optional[float] = None
+    max_risk_amount: Optional[float] = None
+    
+    # Timeframes combinados
+    combined_timeframes: List[str] = []
+    
+    # Pesos personalizados adicionales
+    custom_weights: dict = {}
 
 # Modelos de Usuario
 class User(BaseModel):
@@ -268,5 +307,3 @@ class PerformanceStats(BaseModel):
         allow_population_by_field_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
-
-        
