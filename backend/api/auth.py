@@ -8,7 +8,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, Field, EmailStr
 import os
 
-from database.models import User, UserLogin, UserRegister, UserResponse
+from database.models import User, UserLogin, UserRegister, UserResponse, ExtendedRiskConfig
 from database.connection import db_manager
 
 # Configuración
@@ -270,9 +270,9 @@ async def read_users_me(current_user: User = Depends(get_current_active_user)):
 
 @router.put("/me", response_model=UserResponse)
 async def update_user_preferences(
-    preferences: dict,
-    current_user: User = Depends(get_current_active_user)
-):
+        preferences: dict,
+        current_user: User = Depends(get_current_active_user)
+    ):
     """Actualizar preferencias del usuario"""
     from bson import ObjectId
 
@@ -318,11 +318,22 @@ async def logout(current_user: User = Depends(get_current_active_user)):
 # Nuevos endpoints: Lock de Gestión de Riesgo
 # ---------------------------
 
+class ExtendedRiskConfig(BaseModel):
+    max_daily_loss_percent: Optional[float] = None
+    max_weekly_loss_percent: Optional[float] = None
+    max_daily_profit_percent: Optional[float] = None
+    max_open_trades: Optional[int] = None
+    min_rrr: Optional[float] = None
+    max_losing_streak: Optional[int] = None
+    cool_down_hours: Optional[int] = None
+    risk_by_strategy: Optional[Dict[str, float]] = None
+
 class RiskLockRequest(BaseModel):
-    total_capital: float = Field(..., ge=0)
-    risk_percentage: float = Field(..., ge=0, le=100)
-    source: str = Field(default="mt5")  # "mt5" | "manual" | otro
-    mt5_snapshot: Optional[Dict[str, Any]] = None  # balance, equity, currency, login, server, etc.
+    total_capital: float
+    risk_percentage: float
+    source: str = "mt5"
+    mt5_snapshot: Optional[Dict[str, Any]] = None
+    extended_risk_config: Optional[ExtendedRiskConfig] = None
 
 
 class RiskLockResponse(BaseModel):
@@ -332,6 +343,7 @@ class RiskLockResponse(BaseModel):
     risk_percentage: float
     source: str
     mt5_snapshot: Optional[Dict[str, Any]] = None
+    extended_risk_config: Optional[ExtendedRiskConfig] = None  # Configuración extendida
 
 
 @router.get("/risk/status", response_model=RiskLockResponse)
@@ -351,7 +363,11 @@ async def get_risk_lock_status(current_user: User = Depends(get_current_active_u
             risk_percentage=float((doc or {}).get("risk_management", {}).get("risk_percentage", 1)) if doc else 1.0,
             source=str((doc or {}).get("risk_lock", {}).get("source", "unknown")) if doc else "unknown",
             mt5_snapshot=(doc or {}).get("risk_lock", {}).get("mt5_snapshot"),
+            extended_risk_config=None
         )
+
+    extended_config = risk_lock.get("extended_risk_config")
+    extended_risk_config = ExtendedRiskConfig(**extended_config) if extended_config else None
 
     return RiskLockResponse(
         locked=True,
@@ -360,6 +376,7 @@ async def get_risk_lock_status(current_user: User = Depends(get_current_active_u
         risk_percentage=float(risk_lock.get("risk_percentage", 0.0)),
         source=risk_lock.get("source", "unknown"),
         mt5_snapshot=risk_lock.get("mt5_snapshot"),
+        extended_risk_config=extended_risk_config
     )
 
 
@@ -373,16 +390,22 @@ async def lock_risk_configuration(
 
     now_iso = datetime.utcnow().isoformat()
 
+    risk_lock_data = {
+        "locked": True,
+        "locked_at": now_iso,
+        "total_capital": float(payload.total_capital),
+        "risk_percentage": float(payload.risk_percentage),
+        "source": payload.source,
+        "mt5_snapshot": payload.mt5_snapshot or {},
+    }
+    
+    # Agregar configuración extendida si existe
+    if payload.extended_risk_config:
+        risk_lock_data["extended_risk_config"] = payload.extended_risk_config.dict()
+
     # Grabar un registro inmutable del lock en el documento del usuario
     update_data = {
-        "risk_lock": {
-            "locked": True,
-            "locked_at": now_iso,
-            "total_capital": float(payload.total_capital),
-            "risk_percentage": float(payload.risk_percentage),
-            "source": payload.source,
-            "mt5_snapshot": payload.mt5_snapshot or {},
-        },
+        "risk_lock": risk_lock_data,
         # opcional: duplicar en un subdocumento visible
         "risk_management": {
             "total_capital": float(payload.total_capital),
@@ -390,6 +413,7 @@ async def lock_risk_configuration(
             "locked": True,
             "locked_at": now_iso,
             "source": payload.source,
+            "extended_risk_config": payload.extended_risk_config.dict() if payload.extended_risk_config else None
         },
         "updated_at": datetime.utcnow(),
     }
@@ -407,4 +431,5 @@ async def lock_risk_configuration(
         risk_percentage=float(payload.risk_percentage),
         source=payload.source,
         mt5_snapshot=payload.mt5_snapshot or {},
+        extended_risk_config=payload.extended_risk_config
     )

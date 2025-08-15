@@ -64,6 +64,16 @@ class TradingStrategy(str, Enum):
     HEDGING = "hedging"
     PYRAMIDING = "pyramiding"
 
+class ExtendedRiskConfig(BaseModel):
+    max_daily_loss_percent: Optional[float] = None
+    max_weekly_loss_percent: Optional[float] = None
+    max_daily_profit_percent: Optional[float] = None
+    max_open_trades: Optional[int] = None
+    min_rrr: Optional[float] = None
+    max_losing_streak: Optional[int] = None
+    cool_down_hours: Optional[int] = None
+    risk_by_strategy: Optional[Dict[str, float]] = None
+
 class AnalysisConfig(BaseModel):
     """Configuración para el análisis de confluencias"""
     # Configuración básica
@@ -98,10 +108,13 @@ class AnalysisConfig(BaseModel):
     execution_type: ExecutionType = ExecutionType.MARKET
     allowed_execution_types: List[ExecutionType] = [ExecutionType.MARKET]
     
-    # Gestión de riesgo
+    # Gestión de riesgo básica
     total_capital: Optional[float] = None
     risk_percentage: Optional[float] = None
     max_risk_amount: Optional[float] = None
+    
+    extended_risk_config: Optional[ExtendedRiskConfig] = None
+    risk_management_locked: bool = False
     
     # Timeframes combinados
     combined_timeframes: List[str] = []

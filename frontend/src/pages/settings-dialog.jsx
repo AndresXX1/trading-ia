@@ -44,11 +44,10 @@ import {
   autoConnectMT5,
   loadMT5Profile,
   saveMT5Profile,
-  deleteMT5Profile,
   setAutoReconnect,
   setRemember,
 } from "../features/auth/mt5-slice"
-import api from "../api"
+import api from "../api/index"
 import AutoTradingComponent from "./automatic-execution"
 
 function getSystemTimeZone() {
@@ -258,7 +257,7 @@ function formatSessionRangeInZone(startUtcHour, endUtcHour, tz) {
   return `${fmt.format(start)} - ${fmt.format(end)}`
 }
 
-export default function SettingsDialog({
+const SettingsDialog = ({
   open,
   onClose,
   riskManagement,
@@ -267,13 +266,14 @@ export default function SettingsDialog({
   setAiSettings,
   showSnackbar,
   timeframes,
-}) {
+}) => {
   const dispatch = useDispatch()
   const mt5 = useSelector((state) => state.mt5 || {})
   const isConnected = !!mt5.connected
   const account = mt5.account || null
   const connectStatus = mt5.status || "idle"
   const connectError = mt5.error || null
+  const user = useSelector((state) => state.user || {})
 
   const [settingsTab, setSettingsTab] = useState(0)
 
@@ -638,7 +638,8 @@ export default function SettingsDialog({
       risk_percentage: Number(riskManagement.riskPercentage) || 1,
       extended_risk_config: {
         maxDailyLossPercent: extendedRiskManagement.maxDailyLossPercent,
-        maxWeeklyLossPercent: extendedRiskManagement.maxDailyLossPercent,
+        maxWeeklyLossPercent: extendedRiskManagement.maxWeeklyLossPercent,
+        maxDailyProfitPercent: extendedRiskManagement.maxDailyProfitPercent,
         maxOpenTrades: extendedRiskManagement.maxOpenTrades,
         minRRR: extendedRiskManagement.minRRR,
         maxLosingStreak: extendedRiskManagement.maxLosingStreak,
@@ -786,15 +787,72 @@ export default function SettingsDialog({
     },
   ]
 
-  const clearProfile = async () => {
-    try {
-      await dispatch(deleteMT5Profile()).unwrap()
-      setRememberSession(false)
-      showSnackbar("🗑️ Perfil de MT5 eliminado", "info")
-    } catch (e) {
-      showSnackbar("⚠️ No se pudo eliminar el perfil", "warning")
-    }
+  const clearProfile = () => {
+    localStorage.removeItem("mt5Config")
+    localStorage.removeItem(`mt5Profile_${user?.id}`)
+
+    setMt5Form({
+      server: "",
+      login: "",
+      password: "",
+    })
+
+    showSnackbar("Perfil MT5 eliminado correctamente", "success")
   }
+
+  useEffect(() => {
+    if (open) {
+      // Reset all sensitive states to prevent data leakage between users
+      setMt5Form({
+        type: mt5.account_type || "demo", // 'demo' | 'real'
+        server: "",
+        login: "",
+        password: "",
+      })
+      setExtendedRiskManagement({
+        ...riskManagement,
+        maxDailyLossPercent: 5, // % máximo de pérdida diaria
+        maxWeeklyLossPercent: 15, // % máximo de pérdida semanal
+        maxDailyProfitPercent: 10, // % máximo de ganancia diaria
+        maxOpenTrades: 5, // Límite de operaciones simultáneas
+        minRRR: 2, // Relación Riesgo:Beneficio mínima
+        maxLosingStreak: 3, // Racha máxima de pérdidas antes de pausar
+        coolDownHours: 4, // Horas de pausa tras racha
+        riskByStrategy: {
+          // Perfiles por estrategia
+          scalping: { riskPercent: 1, maxTrades: 5 },
+          day_trading: { riskPercent: 2, maxTrades: 3 },
+          swing_trading: { riskPercent: 2, maxTrades: 2 },
+          position_trading: { riskPercent: 3, maxTrades: 1 },
+          maleta: { riskPercent: 2, maxTrades: 2 },
+        },
+      })
+      setRememberSession(false)
+      setAutoReconnectLocal(false)
+      setAutoTradingSettings({
+        selectedPairs: ["EURUSD", "GBPUSD"],
+        activeSessions: ["london", "newyork"],
+        maxConcurrentTrades: 3,
+        enableSessionFiltering: true,
+        pauseOnNews: true,
+        autoStopLoss: true,
+        autoTakeProfit: true,
+      })
+
+      // Load current user's saved preferences after reset
+      const savedMt5 = localStorage.getItem("mt5Config")
+      if (savedMt5 && user?.id) {
+        try {
+          const parsed = JSON.parse(savedMt5)
+          if (parsed.userId === user.id) {
+            setMt5Form(parsed.config)
+          }
+        } catch (error) {
+          console.error("Error loading MT5 config:", error)
+        }
+      }
+    }
+  }, [open, user?.id, mt5.account_type, riskManagement])
 
   return (
     <Dialog
@@ -1221,10 +1279,10 @@ export default function SettingsDialog({
                 {"💰 Configuración Completa de Gestión de Riesgo"}
               </Typography>
 
-              <Grid container spacing={3}>
-                {/* Configuración Básica */}
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" sx={{ color: "#00ff88", mb: 2, fontWeight: "bold" }}>
+              <Grid container spacing={4}>
+                {/* Configuración Básica - Ahora más compacta */}
+                <Grid item xs={12} md={4}>
+                  <Typography variant="subtitle1" sx={{ color: "#00ff88", mb: 3, fontWeight: "bold" }}>
                     {"📊 Configuración Básica"}
                   </Typography>
 
@@ -1235,7 +1293,7 @@ export default function SettingsDialog({
                     value={riskManagement.totalCapital}
                     disabled
                     sx={{
-                      mb: 2,
+                      mb: 3,
                       "& .MuiInputLabel-root": { color: "#00ffff" },
                       "& .MuiOutlinedInput-root": { color: "#ffffff" },
                     }}
@@ -1246,7 +1304,7 @@ export default function SettingsDialog({
                     helperText="Fijado automáticamente por saldo MT5"
                   />
 
-                  <FormControl fullWidth sx={{ mb: 2 }}>
+                  <FormControl fullWidth sx={{ mb: 3 }}>
                     <InputLabel sx={{ color: "#00ffff" }}>{"Riesgo por Operación"}</InputLabel>
                     <Select
                       value={riskManagement.riskPercentage}
@@ -1267,163 +1325,370 @@ export default function SettingsDialog({
                     </Select>
                   </FormControl>
 
-                  <Box sx={{ mb: 2, p: 2, backgroundColor: "rgba(0,255,136,0.1)", borderRadius: 1 }}>
-                    <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mb: 1 }}>
-                      {"Máximo a Arriesgar por Operación:"}
+                  <Box
+                    sx={{
+                      p: 2,
+                      backgroundColor: "rgba(0,255,255,0.1)",
+                      borderRadius: 1,
+                      border: "1px solid rgba(0,255,255,0.3)",
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle2"
+                      sx={{ color: "#00ffff", mb: 2, fontWeight: "bold", textAlign: "center" }}
+                    >
+                      💰 Resumen Principal
                     </Typography>
-                    <Typography variant="h5" sx={{ color: "#00ff88", fontWeight: "bold" }}>
-                      ${((riskManagement.totalCapital * riskManagement.riskPercentage) / 100).toLocaleString()}
-                    </Typography>
+                    <Grid container spacing={1}>
+                      <Grid item xs={12}>
+                        <Box sx={{ textAlign: "center", mb: 1 }}>
+                          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)" }}>
+                            Capital Total
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: "#00ffff", fontWeight: "bold" }}>
+                            ${riskManagement.totalCapital.toLocaleString()}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Box sx={{ textAlign: "center" }}>
+                          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)" }}>
+                            Riesgo
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: "#ff6b6b", fontWeight: "bold" }}>
+                            {riskManagement.riskPercentage}%
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={6}>
+                        <Box sx={{ textAlign: "center" }}>
+                          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)" }}>
+                            Máximo
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: "#00ff88", fontWeight: "bold" }}>
+                            ${((riskManagement.totalCapital * riskManagement.riskPercentage) / 100).toLocaleString()}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
                   </Box>
                 </Grid>
 
-                {/* Configuración Avanzada */}
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle1" sx={{ color: "#ff6b6b", mb: 2, fontWeight: "bold" }}>
+                <Grid item xs={12} md={8}>
+                  <Typography variant="subtitle1" sx={{ color: "#ff6b6b", mb: 3, fontWeight: "bold" }}>
                     {"⚠️ Configuración Avanzada"}
                   </Typography>
 
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <TextField
-                        fullWidth
-                        label="Pérdida máxima diaria (%)"
-                        type="number"
-                        value={extendedRiskManagement.maxDailyLossPercent}
-                        onChange={(e) =>
-                          setExtendedRiskManagement((prev) => ({
-                            ...prev,
-                            maxDailyLossPercent: Number(e.target.value),
-                          }))
-                        }
-                        disabled={riskManagement.isLocked}
-                        sx={{
-                          "& .MuiInputLabel-root": { color: "#00ffff" },
-                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
-                        }}
-                      />
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="body2" sx={{ color: "#ffc107", mb: 2, fontWeight: "bold" }}>
+                      📈 Límites Diarios y Semanales
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Pérdida máxima diaria (%)"
+                          type="number"
+                          value={extendedRiskManagement.maxDailyLossPercent}
+                          onChange={(e) =>
+                            setExtendedRiskManagement((prev) => ({
+                              ...prev,
+                              maxDailyLossPercent: Number(e.target.value),
+                            }))
+                          }
+                          disabled={riskManagement.isLocked}
+                          sx={{
+                            "& .MuiInputLabel-root": { color: "#00ffff" },
+                            "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Pérdida máxima semanal (%)"
+                          type="number"
+                          value={extendedRiskManagement.maxWeeklyLossPercent}
+                          onChange={(e) =>
+                            setExtendedRiskManagement((prev) => ({
+                              ...prev,
+                              maxWeeklyLossPercent: Number(e.target.value),
+                            }))
+                          }
+                          disabled={riskManagement.isLocked}
+                          sx={{
+                            "& .MuiInputLabel-root": { color: "#00ffff" },
+                            "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Ganancia máxima diaria (%)"
+                          type="number"
+                          value={extendedRiskManagement.maxDailyProfitPercent}
+                          onChange={(e) =>
+                            setExtendedRiskManagement((prev) => ({
+                              ...prev,
+                              maxDailyProfitPercent: Number(e.target.value),
+                            }))
+                          }
+                          disabled={riskManagement.isLocked}
+                          sx={{
+                            "& .MuiInputLabel-root": { color: "#00ffff" },
+                            "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                          }}
+                        />
+                      </Grid>
                     </Grid>
+                  </Box>
 
-                    <Grid item xs={6}>
-                      <TextField
-                        fullWidth
-                        label="Pérdida máxima semanal (%)"
-                        type="number"
-                        value={extendedRiskManagement.maxWeeklyLossPercent}
-                        onChange={(e) =>
-                          setExtendedRiskManagement((prev) => ({
-                            ...prev,
-                            maxWeeklyLossPercent: Number(e.target.value),
-                          }))
-                        }
-                        disabled={riskManagement.isLocked}
-                        sx={{
-                          "& .MuiInputLabel-root": { color: "#00ffff" },
-                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
-                        }}
-                      />
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="body2" sx={{ color: "#9c27b0", mb: 2, fontWeight: "bold" }}>
+                      🎯 Límites de Operaciones
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Máximo operaciones abiertas"
+                          type="number"
+                          value={extendedRiskManagement.maxOpenTrades}
+                          onChange={(e) =>
+                            setExtendedRiskManagement((prev) => ({ ...prev, maxOpenTrades: Number(e.target.value) }))
+                          }
+                          disabled={riskManagement.isLocked}
+                          sx={{
+                            "& .MuiInputLabel-root": { color: "#00ffff" },
+                            "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Relación R:R mínima"
+                          type="number"
+                          value={extendedRiskManagement.minRRR}
+                          onChange={(e) =>
+                            setExtendedRiskManagement((prev) => ({ ...prev, minRRR: Number(e.target.value) }))
+                          }
+                          disabled={riskManagement.isLocked}
+                          sx={{
+                            "& .MuiInputLabel-root": { color: "#00ffff" },
+                            "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                          }}
+                        />
+                      </Grid>
                     </Grid>
+                  </Box>
 
-                    <Grid item xs={6}>
-                      <TextField
-                        fullWidth
-                        label="Ganancia máxima diaria (%)"
-                        type="number"
-                        value={extendedRiskManagement.maxDailyProfitPercent}
-                        onChange={(e) =>
-                          setExtendedRiskManagement((prev) => ({
-                            ...prev,
-                            maxDailyProfitPercent: Number(e.target.value),
-                          }))
-                        }
-                        disabled={riskManagement.isLocked}
-                        sx={{
-                          "& .MuiInputLabel-root": { color: "#00ffff" },
-                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
-                        }}
-                      />
+                  <Box>
+                    <Typography variant="body2" sx={{ color: "#f44336", mb: 2, fontWeight: "bold" }}>
+                      🛡️ Protección de Capital
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <TextField
+                          fullWidth
+                          label="Racha máxima de pérdidas"
+                          type="number"
+                          value={extendedRiskManagement.maxLosingStreak}
+                          onChange={(e) =>
+                            setExtendedRiskManagement((prev) => ({ ...prev, maxLosingStreak: Number(e.target.value) }))
+                          }
+                          disabled={riskManagement.isLocked}
+                          sx={{
+                            "& .MuiInputLabel-root": { color: "#00ffff" },
+                            "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                          }}
+                        />
+                      </Grid>
                     </Grid>
+                  </Box>
+                </Grid>
 
-                    <Grid item xs={6}>
-                      <TextField
-                        fullWidth
-                        label="Máximo operaciones abiertas"
-                        type="number"
-                        value={extendedRiskManagement.maxOpenTrades}
-                        onChange={(e) =>
-                          setExtendedRiskManagement((prev) => ({ ...prev, maxOpenTrades: Number(e.target.value) }))
-                        }
-                        disabled={riskManagement.isLocked}
-                        sx={{
-                          "& .MuiInputLabel-root": { color: "#00ffff" },
-                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
-                        }}
-                      />
-                    </Grid>
+                <Grid item xs={12}>
+                  <Box sx={{ mt: 2, p: 3, backgroundColor: "rgba(0,255,136,0.1)", borderRadius: 1 }}>
+                    <Typography variant="h6" sx={{ color: "#00ff88", mb: 3, fontWeight: "bold", textAlign: "center" }}>
+                      📊 Resumen Detallado de Configuración
+                    </Typography>
 
-                    <Grid item xs={6}>
-                      <TextField
-                        fullWidth
-                        label="Relación R:R mínima"
-                        type="number"
-                        value={extendedRiskManagement.minRRR}
-                        onChange={(e) =>
-                          setExtendedRiskManagement((prev) => ({ ...prev, minRRR: Number(e.target.value) }))
-                        }
-                        disabled={riskManagement.isLocked}
-                        sx={{
-                          "& .MuiInputLabel-root": { color: "#00ffff" },
-                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
-                        }}
-                      />
-                    </Grid>
+                    <Grid container spacing={3}>
+                      {/* Cálculos de Trading */}
+                      <Grid item xs={12} md={4}>
+                        <Box
+                          sx={{
+                            p: 2,
+                            backgroundColor: "rgba(255,193,7,0.1)",
+                            borderRadius: 1,
+                            border: "1px solid rgba(255,193,7,0.3)",
+                            height: "100%",
+                          }}
+                        >
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ color: "#ffc107", mb: 2, fontWeight: "bold", textAlign: "center" }}
+                          >
+                            📈 Cálculos de Trading
+                          </Typography>
+                          <Grid container spacing={2}>
+                            <Grid item xs={6}>
+                              <Box sx={{ textAlign: "center" }}>
+                                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", display: "block" }}>
+                                  Lote Calculado
+                                </Typography>
+                                <Typography variant="h6" sx={{ color: "#ffc107", fontWeight: "bold" }}>
+                                  {(
+                                    (riskManagement.totalCapital * riskManagement.riskPercentage) /
+                                    100 /
+                                    100 /
+                                    10
+                                  ).toFixed(2)}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Box sx={{ textAlign: "center" }}>
+                                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", display: "block" }}>
+                                  R:R Mínima
+                                </Typography>
+                                <Typography variant="h6" sx={{ color: "#ffc107", fontWeight: "bold" }}>
+                                  1:{extendedRiskManagement.minRRR}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          </Grid>
+                        </Box>
+                      </Grid>
 
-                    <Grid item xs={6}>
-                      <TextField
-                        fullWidth
-                        label="Racha máxima de pérdidas"
-                        type="number"
-                        value={extendedRiskManagement.maxLosingStreak}
-                        onChange={(e) =>
-                          setExtendedRiskManagement((prev) => ({ ...prev, maxLosingStreak: Number(e.target.value) }))
-                        }
-                        disabled={riskManagement.isLocked}
-                        sx={{
-                          "& .MuiInputLabel-root": { color: "#00ffff" },
-                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
-                        }}
-                      />
+                      {/* Límites Temporales */}
+                      <Grid item xs={12} md={4}>
+                        <Box
+                          sx={{
+                            p: 2,
+                            backgroundColor: "rgba(156,39,176,0.1)",
+                            borderRadius: 1,
+                            border: "1px solid rgba(156,39,176,0.3)",
+                            height: "100%",
+                          }}
+                        >
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ color: "#9c27b0", mb: 2, fontWeight: "bold", textAlign: "center" }}
+                          >
+                            ⏰ Límites Temporales
+                          </Typography>
+                          <Grid container spacing={1}>
+                            <Grid item xs={6}>
+                              <Box sx={{ textAlign: "center" }}>
+                                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", display: "block" }}>
+                                  Pérd. Máx. Diaria
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: "#ff6b6b", fontWeight: "bold" }}>
+                                  {extendedRiskManagement.maxDailyLossPercent}%
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)" }}>
+                                  $
+                                  {(
+                                    (riskManagement.totalCapital * extendedRiskManagement.maxDailyLossPercent) /
+                                    100
+                                  ).toLocaleString()}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            <Grid item xs={6}>
+                              <Box sx={{ textAlign: "center" }}>
+                                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", display: "block" }}>
+                                  Pérd. Máx. Semanal
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: "#ff6b6b", fontWeight: "bold" }}>
+                                  {extendedRiskManagement.maxWeeklyLossPercent}%
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)" }}>
+                                  $
+                                  {(
+                                    (riskManagement.totalCapital * extendedRiskManagement.maxWeeklyLossPercent) /
+                                    100
+                                  ).toLocaleString()}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            <Grid item xs={12}>
+                              <Box sx={{ textAlign: "center", mt: 1 }}>
+                                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", display: "block" }}>
+                                  Ganancia Máx. Diaria
+                                </Typography>
+                                <Typography variant="body2" sx={{ color: "#00ff88", fontWeight: "bold" }}>
+                                  {extendedRiskManagement.maxDailyProfitPercent}% • $
+                                  {(
+                                    (riskManagement.totalCapital * extendedRiskManagement.maxDailyProfitPercent) /
+                                    100
+                                  ).toLocaleString()}
+                                </Typography>
+                              </Box>
+                            </Grid>
+                          </Grid>
+                        </Box>
+                      </Grid>
+
+                      {/* Protección de Capital */}
+                      <Grid item xs={12} md={4}>
+                        <Box
+                          sx={{
+                            p: 2,
+                            backgroundColor: "rgba(244,67,54,0.1)",
+                            borderRadius: 1,
+                            border: "1px solid rgba(244,67,54,0.3)",
+                            height: "100%",
+                          }}
+                        >
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ color: "#f44336", mb: 2, fontWeight: "bold", textAlign: "center" }}
+                          >
+                            🛡️ Protección de Capital
+                          </Typography>
+                          <Grid container spacing={2}>
+                            <Grid item xs={12}>
+                              <Box sx={{ textAlign: "center" }}>
+                                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", display: "block" }}>
+                                  Racha Máx. de Pérdidas
+                                </Typography>
+                                <Typography variant="h6" sx={{ color: "#f44336", fontWeight: "bold" }}>
+                                  {extendedRiskManagement.maxLosingStreak}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)" }}>
+                                  operaciones consecutivas
+                                </Typography>
+                              </Box>
+                            </Grid>
+                            <Grid item xs={12}>
+                              <Box sx={{ textAlign: "center" }}>
+                                <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)", display: "block" }}>
+                                  Estado de Configuración
+                                </Typography>
+                                <Typography
+                                  variant="h6"
+                                  sx={{ color: riskManagement.isLocked ? "#00ff88" : "#ffc107", fontWeight: "bold" }}
+                                >
+                                  {riskManagement.isLocked ? "🔒 Bloqueada" : "🔓 Editable"}
+                                </Typography>
+                                {riskManagement.isLocked && riskManagement.lockedAt && (
+                                  <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.5)" }}>
+                                    desde {new Date(riskManagement.lockedAt).toLocaleDateString()}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Grid>
+                          </Grid>
+                        </Box>
+                      </Grid>
                     </Grid>
-                  </Grid>
+                  </Box>
                 </Grid>
               </Grid>
-
-              {!riskManagement.isLocked && (
-                <Button
-                  fullWidth
-                  variant="contained"
-                  onClick={lockRiskConfiguration}
-                  disabled={locking || !riskManagement.totalCapital || riskManagement.totalCapital <= 0}
-                  sx={{
-                    mt: 3,
-                    backgroundColor: "#ff6b6b",
-                    color: "#ffffff",
-                    "&:hover": { backgroundColor: "#ff5252" },
-                    "&:disabled": { backgroundColor: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.3)" },
-                  }}
-                >
-                  {locking ? "Bloqueando..." : "🔒 Bloquear Configuración Completa (persistente)"}
-                </Button>
-              )}
-
-              {riskManagement.isLocked && (
-                <Alert severity="success" sx={{ backgroundColor: "rgba(76,175,80,0.1)", mt: 3 }}>
-                  <Typography variant="body2">
-                    {"✅ Configuración completa bloqueada el "}
-                    {riskManagement.lockedAt ? new Date(riskManagement.lockedAt).toLocaleString() : "N/A"}
-                  </Typography>
-                </Alert>
-              )}
             </Card>
           </Box>
         )}
@@ -2247,7 +2512,10 @@ export default function SettingsDialog({
         >
           {"Guardar Configuración"}
         </Button>
+        QA
       </DialogActions>
     </Dialog>
   )
 }
+
+export default SettingsDialog
