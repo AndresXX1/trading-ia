@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional, Any, Callable, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import json
 import numpy as np
@@ -17,7 +17,7 @@ except Exception:
     mt5 = None  # noqa: N816
 
 # Modelos y dependencias del proyecto
-from database.models import User
+from database.models import User, MT5Session, PyObjectId, MT5Profile
 from database.connection import get_database
 from api.auth import get_current_user
 
@@ -29,10 +29,6 @@ logger = logging.getLogger(__name__)
 
 # Inicializar MT5 provider
 mt5_provider = MT5DataProvider()
-
-# Estado simple en memoria por usuario para recordar detalles de la sesión MT5
-SESSION_STATE: Dict[str, Dict[str, Any]] = {}
-
 
 # ------------------------
 # Helpers comunes
@@ -209,7 +205,7 @@ async def _get_account_info_safe(retries: int = 0, delay_ms: int = 0) -> Dict[st
             )
             return info
 
-        # “tocar” el proveedor y reintentar
+        # "tocar" el proveedor y reintentar
         try:
             if hasattr(mt5_provider, "get_symbol_info"):
                 mt5_provider.get_symbol_info("EURUSD")
@@ -250,6 +246,66 @@ def _is_connected_safe() -> bool:
     return False
 
 
+async def _get_or_create_mt5_session(user_id: str, db) -> Optional[Dict[str, Any]]:
+    """Obtiene o crea una sesión MT5 para el usuario"""
+    # Buscar sesión existente
+    session_doc = await db.mt5_sessions.find_one({"user_id": user_id})
+    
+    if session_doc:
+        # Verificar si la sesión no ha expirado
+        if session_doc.get("expires_at") and session_doc["expires_at"] > datetime.utcnow():
+            # Actualizar last_activity
+            await db.mt5_sessions.update_one(
+                {"_id": session_doc["_id"]},
+                {"$set": {"last_activity": datetime.utcnow()}}
+            )
+            return session_doc
+        else:
+            # Sesión expirada, marcar como desconectada
+            await db.mt5_sessions.update_one(
+                {"_id": session_doc["_id"]},
+                {"$set": {
+                    "is_connected": False,
+                    "updated_at": datetime.utcnow()
+                }}
+            )
+    
+    return None
+
+
+async def _update_mt5_session(user_id: str, db, session_data: Dict[str, Any]) -> None:
+    """Actualiza o crea la sesión MT5 del usuario"""
+    now = datetime.utcnow()
+    
+    # Datos de la sesión
+    session_doc = {
+        "user_id": user_id,
+        "is_connected": session_data.get("is_connected", False),
+        "connected_at": session_data.get("connected_at", now),
+        "account_type": session_data.get("account_type"),
+        "server": session_data.get("server"),
+        "login": session_data.get("login"),
+        "account_info": session_data.get("account_info"),
+        "expires_at": now + timedelta(hours=24),  # Sesión válida por 24 horas
+        "updated_at": now,
+        "last_activity": now
+    }
+    
+    # Actualizar o insertar
+    await db.mt5_sessions.update_one(
+        {"user_id": user_id},
+        {
+            "$set": session_doc,
+            "$setOnInsert": {"created_at": now}
+        },
+        upsert=True
+    )
+
+class ProfileResponse(BaseModel):
+    exists: bool
+    profile: Optional[Dict[str, Any]] = None
+    timestamp: str
+
 # ------------------------
 # Modelos Pydantic
 # ------------------------
@@ -259,7 +315,7 @@ class ConnectRequest(BaseModel):
     server: Optional[str] = Field(None, description="Nombre del servidor (ej: 'Broker-Demo')")
     account_type: Optional[str] = Field("real", description="Tipo de cuenta: 'real' o 'demo'")
     remember: Optional[bool] = Field(False, description="Guardar perfil (sin contraseña) en DB")
-
+    ai_settings: Optional[Dict[str, Any]] = None
 
 class ConnectResponse(BaseModel):
     connected: bool
@@ -298,7 +354,7 @@ class Profile(BaseModel):
     server: Optional[str] = None
     account_type: Optional[str] = "real"
     updated_at: Optional[str] = None
-
+    ai_settings: Optional[Dict[str, Any]] = None
 
 class ProfileResponse(BaseModel):
     exists: bool
@@ -350,13 +406,20 @@ async def connect_mt5(body: ConnectRequest, current_user: User = Depends(get_cur
             ).model_dump()
         )
 
-    # Guardar estado in-memory
-    SESSION_STATE[user_id] = {
-        "connected_at": datetime.utcnow().isoformat(),
+    # Obtener información de la cuenta
+    info = await _get_account_info_safe(retries=5, delay_ms=200)
+
+    # Guardar sesión en la base de datos
+    session_data = {
+        "is_connected": True,
+        "connected_at": datetime.utcnow(),
         "account_type": account_type,
-        "server": body.server,
-        "login": str(body.login) if body.login else None,
+        "server": info.get("server") or body.server,
+        "login": info.get("login") or (str(body.login) if body.login else None),
+        "account_info": info
     }
+    
+    await _update_mt5_session(user_id, db, session_data)
 
     # Guardar perfil en DB si remember
     if body.remember:
@@ -365,12 +428,10 @@ async def connect_mt5(body: ConnectRequest, current_user: User = Depends(get_cur
             "login": str(body.login) if body.login else None,
             "server": body.server,
             "account_type": account_type,
+            "ai_settings": body.ai_settings or {}, 
             "updated_at": datetime.utcnow(),
         }
         await db.mt5_profiles.update_one({"user_id": user_id}, {"$set": profile_doc}, upsert=True)
-
-    # Intentar leer info
-    info = await _get_account_info_safe(retries=5, delay_ms=200)
 
     resp = ConnectResponse(
         connected=True,
@@ -399,7 +460,7 @@ async def autoconnect_mt5(current_user: User = Depends(get_current_user), db=Dep
     Útil en arranque o cuando el usuario habilita auto-reconexión.
     """
     user_id = str(current_user.id)
-    profile = await db.mt5_profiles.find_one({"user_id": user_id})  # no incluye password
+    profile = await db.mt5_profiles.find_one({"user_id": user_id})
 
     ok = False
     try:
@@ -412,15 +473,16 @@ async def autoconnect_mt5(current_user: User = Depends(get_current_user), db=Dep
         ok = False
 
     if ok:
-        # posterga leer account; solo informa estado
-        state = SESSION_STATE.get(user_id, {})
-        if profile:
-            state.update({
-                "account_type": profile.get("account_type") or "real",
-                "server": profile.get("server"),
-                "login": str(profile.get("login")) if profile.get("login") else None,
-            })
-            SESSION_STATE[user_id] = state
+        # Actualizar sesión en la base de datos
+        session_data = {
+            "is_connected": True,
+            "connected_at": datetime.utcnow(),
+            "account_type": profile.get("account_type", "real") if profile else "real",
+            "server": profile.get("server") if profile else None,
+            "login": str(profile.get("login")) if profile and profile.get("login") else None,
+            "account_info": {}
+        }
+        await _update_mt5_session(user_id, db, session_data)
 
     return JSONResponse(
         content=StatusResponse(
@@ -435,49 +497,49 @@ async def autoconnect_mt5(current_user: User = Depends(get_current_user), db=Dep
 
 @router.get("/account", response_model=ConnectResponse)
 async def get_account(current_user: User = Depends(get_current_user), db=Depends(get_database)):
-    """
-    Devuelve el estado de conexión y la información de la cuenta MT5.
-    Si no está conectado e intenta reconectar automáticamente (best-effort).
-    """
     user_id = str(current_user.id)
-    connected = _is_connected_safe()
-
+    session = await _get_or_create_mt5_session(user_id, db)
     profile = await db.mt5_profiles.find_one({"user_id": user_id})
-    state = SESSION_STATE.get(user_id, {})
-    account_type = state.get("account_type") or (profile.get("account_type") if profile else "real")
-    login = state.get("login") or (str(profile.get("login")) if profile and profile.get("login") else None)
-    server = state.get("server") or (profile.get("server") if profile else None)
 
-    if not connected:
-        # best-effort autoconnect
-        try:
-            if hasattr(mt5_provider, "connect"):
-                connected = bool(mt5_provider.connect())
-            elif hasattr(mt5_provider, "initialize"):
-                connected = bool(mt5_provider.initialize())
-        except Exception:
-            connected = False
-
-    if not connected:
+    # 🚨 Si no hay sesión -> devolver conectado=false
+    if not session:
         return JSONResponse(
             content=ConnectResponse(
                 connected=False,
-                account_type=account_type,
-                login=login,
-                server=server,
+                account_type=profile.get("account_type") if profile else None,
+                login=str(profile.get("login")) if profile and profile.get("login") else None,
+                server=profile.get("server") if profile else None,
                 timestamp=datetime.utcnow().isoformat(),
                 message="Not connected to MT5",
             ).model_dump()
         )
 
+    connected = _is_connected_safe()
+    if not connected:
+        await db.mt5_sessions.update_one(
+            {"user_id": user_id},
+            {"$set": {"is_connected": False, "updated_at": datetime.utcnow()}}
+        )
+        return JSONResponse(
+            content=ConnectResponse(
+                connected=False,
+                account_type=session.get("account_type"),
+                login=session.get("login"),
+                server=session.get("server"),
+                timestamp=datetime.utcnow().isoformat(),
+                message="Session found but not connected",
+            ).model_dump()
+        )
+
+    # 🚀 Si conectado, obtener info
     info = await _get_account_info_safe(retries=2, delay_ms=150)
 
     resp = ConnectResponse(
         connected=True,
-        account_type=account_type,
-        login=info.get("login") or login,
-        server=info.get("server") or server,
-        account_id=info.get("login") or login,
+        account_type=session.get("account_type"),
+        login=info.get("login") or session.get("login"),
+        server=info.get("server") or session.get("server"),
+        account_id=info.get("login") or session.get("login"),
         name=info.get("name"),
         currency=info.get("currency"),
         leverage=info.get("leverage"),
@@ -492,15 +554,18 @@ async def get_account(current_user: User = Depends(get_current_user), db=Depends
     return JSONResponse(content=resp.model_dump())
 
 
+
 @router.post("/disconnect", response_model=DisconnectResponse)
-async def disconnect_mt5(current_user: User = Depends(get_current_user)):
+async def disconnect_mt5(current_user: User = Depends(get_current_user), db=Depends(get_database)):
     """
-    Cierra la conexión con MT5 y limpia el estado de sesión en memoria.
+    Cierra la conexión con MT5 y ELIMINA la sesión del usuario.
     """
     user_id = str(current_user.id)
 
     ok = _disconnect_safe()
-    SESSION_STATE.pop(user_id, None)
+    
+    # 🚨 Eliminar por completo la sesión de este usuario
+    await db.mt5_sessions.delete_one({"user_id": user_id})
 
     if not ok:
         return JSONResponse(
@@ -515,7 +580,7 @@ async def disconnect_mt5(current_user: User = Depends(get_current_user)):
     return JSONResponse(
         content=DisconnectResponse(
             success=True,
-            message="Disconnected from MT5 successfully",
+            message="Disconnected from MT5 successfully and session removed",
             timestamp=datetime.utcnow().isoformat(),
         ).model_dump()
     )
@@ -528,14 +593,28 @@ async def mt5_status(current_user: User = Depends(get_current_user), db=Depends(
     """
     user_id = str(current_user.id)
     connected = _is_connected_safe()
+    
+    # Obtener datos de sesión y perfil
+    session = await db.mt5_sessions.find_one({"user_id": user_id})
     profile = await db.mt5_profiles.find_one({"user_id": user_id})
+    
+    # Actualizar estado de conexión en sesión si existe
+    if session:
+        await db.mt5_sessions.update_one(
+            {"_id": session["_id"]},
+            {"$set": {
+                "is_connected": connected,
+                "last_activity": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
+            }}
+        )
 
     return JSONResponse(
         content=StatusResponse(
             connected=connected,
-            account_type=(profile.get("account_type") if profile else None),
-            server=(profile.get("server") if profile else None),
-            login=(str(profile.get("login")) if profile and profile.get("login") else None),
+            account_type=(session.get("account_type") if session else profile.get("account_type") if profile else None),
+            server=(session.get("server") if session else profile.get("server") if profile else None),
+            login=(session.get("login") if session else str(profile.get("login")) if profile and profile.get("login") else None),
             timestamp=datetime.utcnow().isoformat(),
         ).model_dump()
     )
@@ -544,12 +623,13 @@ async def mt5_status(current_user: User = Depends(get_current_user), db=Depends(
 # Perfil: guardar/obtener/eliminar (sin contraseña)
 @router.post("/profile/save", response_model=ProfileResponse)
 async def save_profile(body: Profile, current_user: User = Depends(get_current_user), db=Depends(get_database)):
-    user_id = str(current_user.id)
+    user_id = str(current_user.id)  # 🔹 viene del token, no del body
     doc = {
         "user_id": user_id,
         "login": body.login,
         "server": body.server,
         "account_type": _normalize_account_type(body.account_type or "real"),
+        "ai_settings": body.ai_settings or {},
         "updated_at": datetime.utcnow(),
     }
     await db.mt5_profiles.update_one({"user_id": user_id}, {"$set": doc}, upsert=True)
@@ -566,29 +646,47 @@ async def save_profile(body: Profile, current_user: User = Depends(get_current_u
 async def get_profile(current_user: User = Depends(get_current_user), db=Depends(get_database)):
     user_id = str(current_user.id)
     doc = await db.mt5_profiles.find_one({"user_id": user_id})
+
     if not doc:
-        return JSONResponse(
-            content=ProfileResponse(exists=False, profile=None, timestamp=datetime.utcnow().isoformat()).model_dump()
-        )
-    profile = Profile(
+        return ProfileResponse(exists=False, profile=None, timestamp=datetime.utcnow().isoformat())
+
+    profile = MT5Profile(
         login=str(doc.get("login")) if doc.get("login") else None,
         server=doc.get("server"),
         account_type=doc.get("account_type") or "real",
-        updated_at=(doc.get("updated_at").isoformat() if doc.get("updated_at") else None),
+        risk_config=doc.get("risk_config") or {},
+        ai_config=doc.get("ai_config") or {},
+        updated_at=doc.get("updated_at"),
+        user_id=user_id,
     )
-    return JSONResponse(
-        content=ProfileResponse(exists=True, profile=profile, timestamp=datetime.utcnow().isoformat()).model_dump()
+
+    return ProfileResponse(
+        exists=True,
+        profile=profile,
+        timestamp=datetime.utcnow().isoformat(),
     )
 
 
 @router.delete("/profile", response_model=ProfileResponse)
 async def delete_profile(current_user: User = Depends(get_current_user), db=Depends(get_database)):
+    """
+    Elimina el perfil guardado y también cualquier sesión MT5 activa del usuario.
+    """
     user_id = str(current_user.id)
-    await db.mt5_profiles.delete_one({"user_id": user_id})
-    return JSONResponse(
-        content=ProfileResponse(exists=False, profile=None, timestamp=datetime.utcnow().isoformat()).model_dump()
-    )
 
+    # 🚨 Eliminar perfil
+    await db.mt5_profiles.delete_one({"user_id": user_id})
+
+    # 🚨 Eliminar sesión activa si existe
+    await db.mt5_sessions.delete_one({"user_id": user_id})
+
+    return JSONResponse(
+        content=ProfileResponse(
+            exists=False,
+            profile=None,
+            timestamp=datetime.utcnow().isoformat()
+        ).model_dump()
+    )
 
 # ------------------------
 # Endpoints EXISTENTES (data, price, execute, orders, positions)
@@ -805,6 +903,7 @@ async def get_current_price(
 async def execute_order(
     order_data: Dict[str, Any],
     current_user: User = Depends(get_current_user),
+    db=Depends(get_database),
 ):
     """
     Ejecuta una orden en MT5
@@ -845,7 +944,6 @@ async def execute_order(
 
         if result and result.get("success"):
             # Guardar la orden en la base de datos
-            db = await get_database()
             order_doc = {
                 "user_id": current_user.id,
                 "symbol": symbol,
@@ -936,7 +1034,46 @@ async def get_user_orders(
             },
         )
 
-
+@router.post("/admin/cleanup-mt5-sessions")
+async def cleanup_mt5_sessions(
+    current_user: User = Depends(get_current_user), 
+    db=Depends(get_database)
+):
+    """
+    ENDPOINT TEMPORAL: Limpia todas las sesiones MT5 existentes
+    Solo para administradores - EJECUTAR UNA SOLA VEZ
+    """
+    if current_user.role != "user":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        # Marcar todas las sesiones como desconectadas
+        result = await db.mt5_sessions.update_many(
+            {},
+            {
+                "$set": {
+                    "is_connected": False,
+                    "updated_at": datetime.utcnow(),
+                    "cleanup_applied": True
+                }
+            }
+        )
+        
+        # Crear índice único por user_id
+        try:
+            await db.mt5_sessions.create_index("user_id", unique=True)
+        except Exception:
+            pass  # Índice ya existe
+        
+        return {
+            "success": True,
+            "sessions_cleaned": result.modified_count,
+            "message": "All MT5 sessions cleaned successfully"
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {str(e)}")
+    
 @router.get("/positions")
 async def get_open_positions(
     current_user: User = Depends(get_current_user),

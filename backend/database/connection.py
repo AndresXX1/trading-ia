@@ -5,7 +5,7 @@ import logging
 from typing import Optional
 
 class MongoDB:
-    client: Optional[AsyncIOMotorClient] = None
+    client: Optional[AsyncIOMotorClient] = None # type: ignore
     database = None
 
 # Instancia global

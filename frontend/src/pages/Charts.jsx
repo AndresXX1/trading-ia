@@ -188,6 +188,7 @@ const [extendedRiskManagement, setExtendedRiskManagement] = useState({
   coolDownHours: 0,
   riskByStrategy: {}
 });
+
   // ✅ NUEVOS Estados para tiempo real mejorado
   const [realTimePrice, setRealTimePrice] = useState(null)
   const [lastPriceUpdate, setLastPriceUpdate] = useState(null)
@@ -209,7 +210,8 @@ const [extendedRiskManagement, setExtendedRiskManagement] = useState({
   const [chartAnnotations, setChartAnnotations] = useState([])
   const [imageGenerationAttempted, setImageGenerationAttempted] = useState(false)
   const [currentSignalId, setCurrentSignalId] = useState(null)
-
+const [mt5Session, setMt5Session] = useState(null);
+  const [riskLocked, setRiskLocked] = useState(false)
   // Estados de UI
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
@@ -360,6 +362,14 @@ const [extendedRiskManagement, setExtendedRiskManagement] = useState({
     },
     [aiSettings],
   )
+
+const handleRiskLocked = (locked) => {
+  setRiskManagement((prev) => ({
+    ...prev,
+    isLocked: locked,
+  }))
+}
+
 
   // ✅ Función para mostrar snackbar
   const showSnackbar = useCallback((message, severity = "info") => {
@@ -780,7 +790,7 @@ const [extendedRiskManagement, setExtendedRiskManagement] = useState({
 
   const loadInitialSignals = async () => {
     try {
-      const response = await api.getInitialSignals(20)
+      const response = await api.getInitialSignals(80)
       if (mountedRef.current) {
         setSignals(response.signals || [])
       }
@@ -1135,6 +1145,10 @@ const [extendedRiskManagement, setExtendedRiskManagement] = useState({
   // ✅ MODIFICADA: Análisis con IA usando temporalidad de configuración
 // ✅ MODIFICADA: Análisis con IA usando temporalidad de configuración
  const analyzeWithAI = async () => {
+    if (!mt5Session || !mt5Session.connected) {
+    setSettingsOpen(true); // abre settings si no hay sesión
+    return;
+  }
     if (!selectedPair) {
       showSnackbar("Selecciona un par de divisas", "warning")
       return
@@ -1222,6 +1236,7 @@ const [extendedRiskManagement, setExtendedRiskManagement] = useState({
         setAnalyzing(false)
       }
     }
+    console.log("Analizando con IA con la cuenta:", mt5Session.login);
   }
 
   // ✅ Función para crear anotaciones en el gráfico
@@ -3170,7 +3185,7 @@ const [extendedRiskManagement, setExtendedRiskManagement] = useState({
                   </Box>
                   <Box sx={{ maxHeight: 600, overflowY: "auto" }}>
                     {signals.length > 0 ? (
-                      signals.slice(0, 10).map((signal, index) => (
+                      signals.slice(0, 80).map((signal, index) => (
                         <Card
                           key={signal._id || signal.id || index}
                           sx={{
@@ -3347,12 +3362,16 @@ const [extendedRiskManagement, setExtendedRiskManagement] = useState({
             open={settingsOpen}
             onClose={() => setSettingsOpen(false)}
             riskManagement={riskManagement}
+            onRiskLocked={handleRiskLocked}
+            onMT5StateChange={setMt5Session}
             setRiskManagement={setRiskManagement}
             aiSettings={aiSettings}
             setAiSettings={setAiSettings}
             realtimeSettings={realtimeSettings}
             setRealtimeSettings={setRealtimeSettings}
             showSnackbar={showSnackbar}
+            mt5Session={mt5Session}
+            setMt5Session={setMt5Session}
             timeframes={timeframes} // ✅ NUEVO: Pasar timeframes al dialog
           />
 

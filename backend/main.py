@@ -129,17 +129,66 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Configurar CORS
+# 🚀 CONFIGURACIÓN CORS MEJORADA - SOLUCIONADO
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Temporalmente permite todos los orígenes
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000", 
+        "http://127.0.0.1:5173",
+        "http://localhost:8080",
+        "http://127.0.0.1:8080"
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
-    expose_headers=["*"]
+    expose_headers=["*"],
+    max_age=3600,
 )
 
-# MIDDLEWARE CORREGIDO - Intercepta ANTES de la serialización
+# 🔧 MIDDLEWARE PARA MANEJAR ERRORES CON CORS
+@app.middleware("http")
+async def cors_error_handler(request: Request, call_next):
+    """
+    Middleware que asegura que TODOS los errores incluyan headers CORS
+    """
+    try:
+        response = await call_next(request)
+        
+        # Agregar headers CORS a TODAS las respuestas
+        cors_headers = {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+        }
+        
+        for key, value in cors_headers.items():
+            response.headers[key] = value
+            
+        return response
+        
+    except Exception as e:
+        logger.error(f"Error en middleware CORS: {e}", exc_info=True)
+        
+        # Devolver error con headers CORS
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal Server Error",
+                "detail": str(e),
+                "timestamp": datetime.utcnow().isoformat()
+            },
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Credentials": "true",
+            }
+        )
+
+# MIDDLEWARE para manejar ObjectId serialization 
 @app.middleware("http")
 async def objectid_serialization_middleware(request: Request, call_next):
     """
@@ -194,6 +243,11 @@ async def objectid_serialization_middleware(request: Request, call_next):
                     "error": "Serialization Error",
                     "detail": "Data contains non-serializable ObjectId. Please contact support.",
                     "message": "Error interno de serialización"
+                },
+                headers={
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Headers": "*",
                 }
             )
         raise
@@ -206,8 +260,28 @@ async def objectid_serialization_middleware(request: Request, call_next):
                 "error": "Internal Server Error",
                 "detail": "An unexpected error occurred",
                 "message": "Error interno del servidor"
+            },
+            headers={
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", 
+                "Access-Control-Allow-Headers": "*",
             }
         )
+
+# 🎯 HANDLER PARA OPTIONS (PREFLIGHT)
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    """Maneja todas las requests OPTIONS (CORS preflight)"""
+    return JSONResponse(
+        content={"message": "OK"},
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Max-Age": "3600",
+        }
+    )
 
 # Incluir routers originales
 app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
@@ -235,8 +309,8 @@ async def root():
             "authentication": "/api/auth",
             "pairs": "/api/pairs", 
             "signals": "/api/signals",
-            "charts": "/api/charts",  # Nuevo endpoint
-            "mt5_integration": "/api/mt5"  # Nuevo endpoint
+            "charts": "/api/charts",
+            "mt5_integration": "/api/mt5"
         },
         "timestamp": datetime.utcnow().isoformat()
     }
@@ -264,167 +338,27 @@ async def health_check():
             "metatrader5": mt5_status
         },
         "endpoints": {
-            "total": 4,  # Actualizado para incluir los nuevos routers
+            "total": 4,
             "active": ["auth", "pairs", "signals", "charts", "mt5"]
         },
         "timestamp": datetime.utcnow().isoformat()
     }
 
-@app.get("/api/status")
-async def api_status():
-    """Estado detallado de la API"""
-    try:
-        status_info = {
-            "api_version": "1.0.0",
-            "python_version": "3.11+",
-            "services": {
-                "mongodb": "✅ Connected",
-                "metatrader5": "✅ Connected" if (mt5_provider and mt5_provider.connected) else "❌ Disconnected",
-                "ai_engine": "✅ Ready"
-            },
-            "features": {
-                "real_time_data": True,
-                "elliott_waves": True,
-                "chart_patterns": True,
-                "fibonacci_analysis": True,
-                "confluence_detection": True,
-                "websocket_support": True,
-                "chart_generation": True,  # Nueva funcionalidad
-                "order_execution": True   # Nueva funcionalidad
-            },
-            "available_endpoints": {
-                "/api/auth": "Authentication & User Management",
-                "/api/pairs": "Currency Pairs & Market Data", 
-                "/api/signals": "Trading Signals & Analysis",
-                "/api/charts": "Chart Generation & Technical Analysis Visualization",  # Nuevo
-                "/api/mt5": "MetaTrader 5 Integration & Order Execution"  # Nuevo
-            },
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-        return status_info
-        
-    except Exception as e:
-        logger.error(f"Error getting API status: {e}")
-        raise HTTPException(status_code=500, detail="Error getting system status")
-
-@app.get("/api/pairs/test")
-async def test_mt5_connection():
-    """Prueba la conexión con MT5 y obtiene datos de prueba"""
-    try:
-        if not mt5_provider or not mt5_provider.connected:
-            if not mt5_provider.connect():
-                raise HTTPException(status_code=503, detail="Cannot connect to MetaTrader 5")
-        
-        # Obtener datos de prueba
-        test_data = mt5_provider.get_realtime_data("EURUSD", "H1", 10)
-        
-        if test_data is None or test_data.empty:
-            raise HTTPException(status_code=404, detail="No data available for EURUSD")
-        
-        return {
-            "status": "success",
-            "pair": "EURUSD",
-            "timeframe": "H1",
-            "data_points": len(test_data),
-            "latest_price": float(test_data['close'].iloc[-1]),
-            "sample_data": test_data.tail(3).to_dict('records'),
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"MT5 test failed: {e}")
-        raise HTTPException(status_code=500, detail=f"MT5 test failed: {str(e)}")
-
-# Endpoint para reiniciar conexión MT5
-@app.post("/api/admin/reconnect-mt5")
-async def reconnect_mt5():
-    """Reinicia la conexión con MetaTrader 5"""
-    try:
-        global mt5_provider
-        
-        if mt5_provider:
-            mt5_provider.disconnect()
-        
-        mt5_provider = MT5DataProvider()
-        success = mt5_provider.connect()
-        
-        return {
-            "status": "success" if success else "failed",
-            "message": "MT5 reconnection attempted",
-            "connected": success,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Error reconnecting MT5: {e}")
-        raise HTTPException(status_code=500, detail=f"Reconnection failed: {str(e)}")
-
-# Endpoint de debug para probar serialización
-@app.get("/api/debug/objectid-test")
-async def test_objectid_serialization():
-    """Endpoint para probar la serialización de ObjectId"""
-    try:
-        from database.connection import get_database
-        db = await get_database()
-        
-        # Crear un documento de prueba con ObjectId
-        test_doc = {
-            "_id": ObjectId(),
-            "test_field": "test_value",
-            "timestamp": datetime.utcnow(),
-            "number_field": 123.45
-        }
-        
-        return {
-            "message": "ObjectId serialization test",
-            "test_document": test_doc,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Error in ObjectId test: {e}")
-        raise HTTPException(status_code=500, detail=f"Test failed: {str(e)}")
-
-# Endpoint para listar todas las rutas disponibles - NUEVO
-@app.get("/api/routes")
-async def list_available_routes():
-    """Lista todas las rutas disponibles en la API"""
-    routes = []
-    for route in app.routes:
-        if hasattr(route, 'methods') and hasattr(route, 'path'):
-            routes.append({
-                "path": route.path,
-                "methods": list(route.methods),
-                "name": getattr(route, 'name', 'N/A')
-            })
-    
-    return {
-        "total_routes": len(routes),
-        "routes": sorted(routes, key=lambda x: x['path']),
-        "new_endpoints": {
-            "charts": [
-                "/api/charts/generate - Generate technical analysis charts",
-                "/api/charts/test - Test chart generation"
-            ],
-            "mt5_integration": [
-                "/api/mt5/data - Get real-time MT5 data",
-                "/api/mt5/price/{symbol} - Get current price",
-                "/api/mt5/execute - Execute orders",
-                "/api/mt5/orders - Get user orders", 
-                "/api/mt5/positions - Get open positions"
-            ]
-        },
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-# Manejo de errores global - MEJORADO
+# 🚨 MANEJO DE ERRORES GLOBAL CORREGIDO
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Maneja errores globales con mejor logging"""
+    """Maneja errores globales con CORS headers incluidos"""
     
     # Log detallado del error
     logger.error(f"Global exception on {request.method} {request.url}: {exc}", exc_info=True)
+    
+    # Headers CORS para TODOS los errores
+    cors_headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": "*",
+        "Access-Control-Allow-Credentials": "true",
+    }
     
     # Manejo específico para errores de ObjectId
     if "ObjectId" in str(exc):
@@ -436,7 +370,8 @@ async def global_exception_handler(request: Request, exc: Exception):
                 "message": "Error de serialización de datos",
                 "url": str(request.url),
                 "method": request.method
-            }
+            },
+            headers=cors_headers
         )
     
     # Error general
@@ -444,10 +379,28 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={
             "error": "Internal Server Error",
-            "detail": str(exc) if app.debug else "An unexpected error occurred",
+            "detail": str(exc),
             "message": "Error interno del servidor",
             "url": str(request.url),
             "method": request.method
+        },
+        headers=cors_headers
+    )
+
+# 🧪 ENDPOINT DE TESTING CORS
+@app.get("/api/test-cors")
+async def test_cors():
+    """Endpoint para probar CORS"""
+    return JSONResponse(
+        content={
+            "message": "CORS test successful",
+            "timestamp": datetime.utcnow().isoformat(),
+            "headers_sent": "CORS headers included"
+        },
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
         }
     )
 

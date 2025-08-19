@@ -174,15 +174,25 @@ const generateMockSignals = (count = 10) => {
 // ✅ EXPORTACIÓN PRINCIPAL CON TODAS LAS FUNCIONES
 export default {
   // ✅ AUTENTICACIÓN
-  async login(email, password) {
-    try {
-      const response = await api.post("/api/auth/auth/login", { email, password })
-      return response.data
-    } catch (error) {
-      console.error("❌ Error en login:", error)
-      throw error
-    }
-  },
+async login(email, password) {
+  try {
+    const response = await api.post("/api/auth/auth/login", { email, password })
+    const data = response.data
+
+    // ✅ Guardar en localStorage
+    localStorage.setItem("authToken", data.access_token)
+    localStorage.setItem("refreshToken", data.refresh_token)
+    localStorage.setItem("userId", data.user_id)
+    localStorage.setItem("username", data.username)
+    localStorage.setItem("email", data.email)
+
+    return data
+  } catch (error) {
+    console.error("❌ Error en login:", error)
+    throw error
+  }
+},
+
 
   async getRiskLockStatus() {
     const response = await api.get("/api/auth/auth/risk/status")
@@ -300,7 +310,7 @@ export default {
   },
 
   // ✅ SEÑALES INICIALES
-  async getInitialSignals(limit = 20) {
+  async getInitialSignals(limit = 80) {
     try {
       const response = await api.get("/api/signals/signals/", {
         params: { limit },
@@ -475,10 +485,10 @@ export default {
     return response.data
   },
 
-  async getMT5Profile() {
-    const response = await api.get("/api/mt5/profile")
-    return response.data
-  },
+async getMT5Profile(userId) {
+  const response = await api.get(`/api/mt5/profile`, { params: { user_id: userId } })
+  return response.data
+},
 
   async saveMT5Profile({ login, server, account_type }) {
     const response = await api.post("/api/mt5/profile/save", { login, server, account_type })
@@ -716,15 +726,10 @@ export default {
   },
 
   // ✅ Obtener información de cuenta MT5
-  async getMT5AccountInfo() {
-    try {
-      const response = await api.get("/api/mt5/account")
-      return response.data
-    } catch (error) {
-      console.error("❌ Error obteniendo cuenta MT5:", error)
-      throw error
-    }
-  },
+async getMT5AccountInfo(userId) {
+  const response = await api.get(`/api/mt5/account`, { params: { user_id: userId } })
+  return response.data
+},
 
   // ✅ FUNCIÓN PARA VALIDAR CONEXIÓN
   async validateConnection() {

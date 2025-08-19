@@ -53,18 +53,17 @@ export const loadMT5Profile = createAsyncThunk("mt5/profile/load", async (_, { r
 
 export const saveMT5Profile = createAsyncThunk(
   "mt5/profile/save",
-  async ({ login, server, account_type }, { rejectWithValue }) => {
+  async ({ user_id, login, server, account_type, ai_settings }, { rejectWithValue }) => {
     try {
-      const res = await api.saveMT5Profile({ login, server, account_type })
-      localStorage.setItem("mt5Remember", "1")
-      if (login) localStorage.setItem("mt5LastLogin", String(login))
-      if (server) localStorage.setItem("mt5LastServer", String(server))
+      const res = await api.saveMT5Profile({ user_id, login, server, account_type, ai_settings })
       return res
     } catch (err) {
       return rejectWithValue(err?.response?.data?.detail || err?.message || "Error guardando perfil MT5")
     }
-  },
+  }
 )
+
+
 
 export const deleteMT5Profile = createAsyncThunk("mt5/profile/delete", async (_, { rejectWithValue }) => {
   try {

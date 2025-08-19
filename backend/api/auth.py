@@ -28,6 +28,10 @@ class Token(BaseModel):
     refresh_token: str
     token_type: str = "bearer"
     expires_in: int
+    user_id: str
+    username: Optional[str] = None
+    email: Optional[str] = None
+
 
 
 class TokenData(BaseModel):
@@ -205,11 +209,13 @@ async def login(user_credentials: UserLogin):
     )
 
     return Token(
-        access_token=access_token,
-        refresh_token=refresh_token,
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60
-    )
-
+    access_token=access_token,
+    refresh_token=refresh_token,
+    expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    user_id=str(user.id),
+    username=user.username,
+    email=user.email
+)
 
 @router.post("/refresh", response_model=Token)
 async def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
