@@ -32,13 +32,14 @@ import {
   Lock,
   Psychology,
   PlayArrow,
+  Save as SaveIcon,
   AccountBalanceWallet,
   Login as LoginIcon,
   Logout as LogoutIcon,
   Sync as SyncIcon,
 } from "@mui/icons-material"
 import { saveMT5Profile, setAutoReconnect, setRemember } from "../features/auth/mt5-slice"
-import api from "../api/index"
+import api from "../api/index.js"
 import AutoTradingComponent from "./automatic-execution"
 import { clearMT5LocalStorage } from "../utils/clear-mt5-storage"
 
@@ -256,7 +257,7 @@ const SettingsDialog = ({
   setRiskManagement,
   showSnackbar,
   onRiskLocked,
-    mt5Session,
+  mt5Session,
   setMt5Session,
   aiSettings,
   setAiSettings,
@@ -264,7 +265,7 @@ const SettingsDialog = ({
 }) => {
   const dispatch = useDispatch()
   const user = useSelector((state) => state.user || {})
-  const [accountData, setAccountData] = useState(mt5Session);
+  const [accountData, setAccountData] = useState(mt5Session)
   const [mt5State, setMt5State] = useState({
     connected: false,
     account: null,
@@ -279,7 +280,6 @@ const SettingsDialog = ({
   const account = mt5State.account || null
   const connectStatus = mt5State.status || "idle"
   const connectError = mt5State.error || null
-
 
   const [settingsTab, setSettingsTab] = useState(0)
 
@@ -328,9 +328,9 @@ const SettingsDialog = ({
 
   const [userId, setUserId] = useState(null)
 
-    useEffect(() => {
-    setAccountData(mt5Session);
-  }, [mt5Session]);
+  useEffect(() => {
+    setAccountData(mt5Session)
+  }, [mt5Session])
 
   useEffect(() => {
     const storedUserId = localStorage.getItem("userId")
@@ -340,55 +340,54 @@ const SettingsDialog = ({
     }
   }, [])
 
-useEffect(() => {
-  if (open && userId) {
-    console.log("[v0] Dialog abierto, cargando datos MT5 y gestión de riesgo automáticamente...")
+  useEffect(() => {
+    if (open && userId) {
+      console.log("[v0] Dialog abierto, cargando datos MT5 y gestión de riesgo automáticamente...")
 
-    const loadInitialData = async () => {
-      try {
-        // 1. Cargar perfil guardado (sin contraseña)
-        const res = await loadMT5ProfileFromBackendFunc()
-
-        // ✅ Si existe ai_settings en el perfil, hidratar estado local
-        if (res?.profile?.ai_settings) {
-          console.log("[v0] Restaurando ai_settings guardados:", res.profile.ai_settings)
-          setAiSettings(res.profile.ai_settings)
-        }
-
-        // 2. Verificar estado de conexión actual
-        await checkMT5Status()
-
-        // 3. Si está conectado, cargar información de cuenta
-        await loadUserMT5StateFunc()
-
-        // 4. 🔒 Cargar estado de gestión de riesgo
+      const loadInitialData = async () => {
         try {
-          const riskStatus = await api.getRiskLockStatus()
-          console.log("[v0] Estado de gestión de riesgo:", riskStatus)
+          // 1. Cargar perfil guardado (sin contraseña)
+          const res = await loadMT5ProfileFromBackendFunc()
 
-          setRiskManagement((prev) => ({
-            ...prev,
-            totalCapital: riskStatus.total_capital || prev.totalCapital,
-            riskPercentage: riskStatus.risk_percentage || prev.riskPercentage,
-            isLocked: riskStatus.locked || false,
-            lockedAt: riskStatus.locked_at || null,
-            extended: riskStatus.extended_risk_config || null,
-          }))
-        } catch (err) {
-          console.error("[v0] Error cargando gestión de riesgo:", err)
+          // ✅ Si existe ai_settings en el perfil, hidratar estado local
+          if (res?.profile?.ai_settings) {
+            console.log("[v0] Restaurando ai_settings guardados:", res.profile.ai_settings)
+            setAiSettings(res.profile.ai_settings)
+          }
+
+          // 2. Verificar estado de conexión actual
+          await checkMT5Status()
+
+          // 3. Si está conectado, cargar información de cuenta
+          await loadUserMT5StateFunc()
+
+          // 4. 🔒 Cargar estado de gestión de riesgo
+          try {
+            const riskStatus = await api.getRiskLockStatus()
+            console.log("[v0] Estado de gestión de riesgo:", riskStatus)
+
+            setRiskManagement((prev) => ({
+              ...prev,
+              totalCapital: riskStatus.total_capital || prev.totalCapital,
+              riskPercentage: riskStatus.risk_percentage || prev.riskPercentage,
+              isLocked: riskStatus.locked || false,
+              lockedAt: riskStatus.locked_at || null,
+              extended: riskStatus.extended_risk_config || null,
+            }))
+          } catch (err) {
+            console.error("[v0] Error cargando gestión de riesgo:", err)
+          }
+
+          console.log("[v0] Datos iniciales cargados correctamente")
+        } catch (error) {
+          console.error("[v0] Error cargando datos iniciales:", error)
         }
-
-        console.log("[v0] Datos iniciales cargados correctamente")
-      } catch (error) {
-        console.error("[v0] Error cargando datos iniciales:", error)
       }
+
+      loadInitialData()
     }
-
-    loadInitialData()
-  }
-// eslint-disable-next-line react-hooks/exhaustive-deps
-}, [open, userId])
-
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, userId])
 
   const checkMT5Status = async () => {
     if (!userId) return
@@ -397,13 +396,13 @@ useEffect(() => {
       console.log("[v0] Verificando estado de conexión MT5...")
       const statusResponse = await api.getMT5Status()
 
-setMt5State((prev) => ({
-  ...prev,
-  connected: statusResponse.connected || prev.connected,
-  account: statusResponse.connected ? statusResponse : prev.account,  // ✅ mantiene la cuenta previa
-  account_type: statusResponse.account_type || prev.account_type || "demo",
-  status: statusResponse.connected ? "connected" : prev.status,
-}))
+      setMt5State((prev) => ({
+        ...prev,
+        connected: statusResponse.connected || prev.connected,
+        account: statusResponse.connected ? statusResponse : prev.account, // ✅ mantiene la cuenta previa
+        account_type: statusResponse.account_type || prev.account_type || "demo",
+        status: statusResponse.connected ? "connected" : prev.status,
+      }))
 
       // Si está conectado según el status, intentar obtener info de cuenta
       if (statusResponse.connected) {
@@ -412,11 +411,11 @@ setMt5State((prev) => ({
       }
     } catch (error) {
       console.error("[v0] Error verificando estado MT5:", error)
-setMt5State((prev) => ({
-  ...prev,
-  connected: prev.connected,   // ✅ no forzar a false
-  status: prev.status,         // ✅ mantiene el estado previo
-}))
+      setMt5State((prev) => ({
+        ...prev,
+        connected: prev.connected, // ✅ no forzar a false
+        status: prev.status, // ✅ mantiene el estado previo
+      }))
     }
   }
 
@@ -451,50 +450,50 @@ setMt5State((prev) => ({
   }
 
   const loadUserMT5StateFunc = async () => {
-  if (!userId) return
+    if (!userId) return
 
-  try {
-    console.log("[v0] Cargando estado de cuenta MT5...")
-    const response = await api.getMT5AccountInfo()
+    try {
+      console.log("[v0] Cargando estado de cuenta MT5...")
+      const response = await api.getMT5AccountInfo()
 
-    console.log("[v0] Respuesta de cuenta MT5:", response)
+      console.log("[v0] Respuesta de cuenta MT5:", response)
 
-    const isConnected = !!response?.connected
+      const isConnected = !!response?.connected
 
-    // 🔹 Actualizamos el estado local
-    setMt5State((prev) => ({
-      ...prev,
-      connected: isConnected,
-      account: isConnected ? response : null,
-      account_type: response?.account_type || "demo",
-      status: isConnected ? "connected" : "idle",
-    }))
+      // 🔹 Actualizamos el estado local
+      setMt5State((prev) => ({
+        ...prev,
+        connected: isConnected,
+        account: isConnected ? response : null,
+        account_type: response?.account_type || "demo",
+        status: isConnected ? "connected" : "idle",
+      }))
 
-    // 🔹 Notificamos al padre (Charts) con setMt5Session
-    if (setMt5Session) {
-      setMt5Session(isConnected ? response : null)
-    }
+      // 🔹 Notificamos al padre (Charts) con setMt5Session
+      if (setMt5Session) {
+        setMt5Session(isConnected ? response : null)
+      }
 
-    if (isConnected) {
-      console.log("[v0] Cuenta MT5 conectada, datos actualizados")
-    }
-  } catch (error) {
-    console.error("[v0] Error cargando estado MT5:", error)
+      if (isConnected) {
+        console.log("[v0] Cuenta MT5 conectada, datos actualizados")
+      }
+    } catch (error) {
+      console.error("[v0] Error cargando estado MT5:", error)
 
-    // 🔹 Estado local
-    setMt5State((prev) => ({
-      ...prev,
-      connected: false,
-      account: null,
-      status: "idle",
-    }))
+      // 🔹 Estado local
+      setMt5State((prev) => ({
+        ...prev,
+        connected: false,
+        account: null,
+        status: "idle",
+      }))
 
-    // 🔹 Estado global (padre)
-    if (setMt5Session) {
-      setMt5Session(null)
+      // 🔹 Estado global (padre)
+      if (setMt5Session) {
+        setMt5Session(null)
+      }
     }
   }
-}
 
   // Sync toggles con Redux (para compartir en toda la app)
   useEffect(() => {
@@ -915,81 +914,80 @@ setMt5State((prev) => ({
     }
   }
 
-const handleDisconnectMT5 = async () => {
-  if (!userId) return
+  const handleDisconnectMT5 = async () => {
+    if (!userId) return
 
-  console.log("[v0] Iniciando desconexión MT5...")
-  setMt5State((prev) => ({ ...prev, status: "loading" }))
+    console.log("[v0] Iniciando desconexión MT5...")
+    setMt5State((prev) => ({ ...prev, status: "loading" }))
 
-  try {
-    await api.disconnectMT5Account()
+    try {
+      await api.disconnectMT5Account()
 
-    // 🔹 Limpia el estado local
-    setMt5State({
-      connected: false,
-      account: null,
-      status: "idle",
-      error: null,
-      account_type: "demo",
-      remember: false,
-      autoReconnect: false,
-    })
+      // 🔹 Limpia el estado local
+      setMt5State({
+        connected: false,
+        account: null,
+        status: "idle",
+        error: null,
+        account_type: "demo",
+        remember: false,
+        autoReconnect: false,
+      })
 
-    // 🔹 Limpia el formulario
-    setMt5Form({
-      type: "demo",
-      server: "",
-      login: "",
-      password: "",
-    })
+      // 🔹 Limpia el formulario
+      setMt5Form({
+        type: "demo",
+        server: "",
+        login: "",
+        password: "",
+      })
 
-    clearMT5LocalStorage()
-    console.log("[v0] Desconexión MT5 completada")
-    showSnackbar("✅ Desconectado de MetaTrader 5", "success")
+      clearMT5LocalStorage()
+      console.log("[v0] Desconexión MT5 completada")
+      showSnackbar("✅ Desconectado de MetaTrader 5", "success")
 
-    // 🔥 Aquí notificamos al padre que no hay sesión
-    if (setMt5Session) {
-      setMt5Session(null)
+      // 🔥 Aquí notificamos al padre que no hay sesión
+      if (setMt5Session) {
+        setMt5Session(null)
+      }
+    } catch (err) {
+      console.error("[v0] Error desconectando MT5:", err)
+      setMt5State((prev) => ({
+        ...prev,
+        status: "error",
+        error: err?.message || "Error desconocido",
+      }))
+      showSnackbar(`❌ Error al desconectar MT5: ${err?.message || "Error desconocido"}`, "error")
     }
-
-  } catch (err) {
-    console.error("[v0] Error desconectando MT5:", err)
-    setMt5State((prev) => ({
-      ...prev,
-      status: "error",
-      error: err?.message || "Error desconocido",
-    }))
-    showSnackbar(`❌ Error al desconectar MT5: ${err?.message || "Error desconocido"}`, "error")
   }
-}
-const handleLockRiskConfig = async () => {
-  if (!userId || !mt5State.connected) return;
+  const handleLockRiskConfig = async () => {
+    if (!userId || !mt5State.connected) return
 
-  try {
-    console.log("[v0] Bloqueando configuración de riesgo...");
+    try {
+      console.log("[v0] Bloqueando configuración de riesgo...")
 
-    await api.lockRiskConfiguration({
-      total_capital: mt5State.account?.balance || 10000,
-      risk_percentage: mt5Form.risk_percentage || 2,
-      source: "mt5",
-      mt5_snapshot: mt5State.account,
-      extended_risk_config: {
-        max_daily_loss: mt5Form.max_daily_loss || null,
-        max_trades_per_day: mt5Form.max_trades_per_day || null,
-      },
-    });
+      await api.lockRiskConfiguration({
+        total_capital: mt5State.account?.balance || 10000,
+        risk_percentage: mt5Form.risk_percentage || 2,
+        source: "mt5",
+        mt5_snapshot: mt5State.account,
+        extended_risk_config: {
+          max_daily_loss: mt5Form.max_daily_loss || null,
+          max_trades_per_day: mt5Form.max_trades_per_day || null,
+        },
+      })
 
-    setMt5State((prev) => ({
-      ...prev,
-      riskLocked: true,
-    }));
+      setMt5State((prev) => ({
+        ...prev,
+        riskLocked: true,
+      }))
 
-    showSnackbar("✅ Gestión de riesgo bloqueada correctamente", "success");
-  } catch (err) {
-    console.error("[v0] Error bloqueando riesgo:", err);
-    showSnackbar(`❌ Error al bloquear gestión de riesgo: ${err?.message || "Error desconocido"}`, "error");
+      showSnackbar("✅ Gestión de riesgo bloqueada correctamente", "success")
+    } catch (err) {
+      console.error("[v0] Error bloqueando riesgo:", err)
+      showSnackbar(`❌ Error al bloquear gestión de riesgo: ${err?.message || "Error desconocido"}`, "error")
+    }
   }
-};
 
   const handleAutoReconnect = async () => {
     if (!userId) return
@@ -1014,71 +1012,71 @@ const handleLockRiskConfig = async () => {
       showSnackbar("❌ Error en auto-reconexión", "error")
     }
   }
-const handleSaveConfiguration = () => {
-  const userId = localStorage.getItem("userId") // 👈 obtenemos el id del usuario desde localStorage
+  const handleSaveConfiguration = () => {
+    const userId = localStorage.getItem("userId") // 👈 obtenemos el id del usuario desde localStorage
 
-  if (!userId) {
-    console.error("❌ No se encontró userId en localStorage")
-    showSnackbar("❌ Error: usuario no identificado", "error")
-    return
+    if (!userId) {
+      console.error("❌ No se encontró userId en localStorage")
+      showSnackbar("❌ Error: usuario no identificado", "error")
+      return
+    }
+
+    const payload = {
+      user_id: userId, // 🔹 ahora sí va en el body
+      login: mt5Form.login || "",
+      server: mt5Form.server || "",
+      account_type: mt5Form.type || "demo",
+      ai_settings: aiSettings || {}, // toda la config de IA
+    }
+
+    console.log("📤 Guardando configuración completa:", payload)
+
+    dispatch(saveMT5Profile(payload))
+      .unwrap()
+      .then(() => {
+        showSnackbar("✅ Configuración guardada correctamente", "success")
+        onClose()
+      })
+      .catch((err) => {
+        console.error("❌ Error guardando configuración:", err)
+        showSnackbar("❌ Error guardando configuración", "error")
+      })
   }
 
-  const payload = {
-    user_id: userId,               // 🔹 ahora sí va en el body
-    login: mt5Form.login || "",
-    server: mt5Form.server || "",
-    account_type: mt5Form.type || "demo",
-    ai_settings: aiSettings || {}, // toda la config de IA
-  }
+  const mapAiSettingsToBackend = (settings) => ({
+    // Timeframe
+    timeframe: settings.analysisTimeframe || "H1",
 
-  console.log("📤 Guardando configuración completa:", payload)
+    // Confluencia y riesgo
+    confluence_threshold: settings.confluenceThreshold ?? 0.6,
+    risk_per_trade: settings.riskPerTrade ?? 2.0,
+    lot_size: settings.lotSize ?? 0.1,
+    atr_multiplier_sl: settings.atrMultiplierSl ?? 2.0,
+    risk_reward_ratio: settings.riskRewardRatio ?? 2.0,
 
-  dispatch(saveMT5Profile(payload))
-    .unwrap()
-    .then(() => {
-      showSnackbar("✅ Configuración guardada correctamente", "success")
-      onClose()
-    })
-    .catch((err) => {
-      console.error("❌ Error guardando configuración:", err)
-      showSnackbar("❌ Error guardando configuración", "error")
-    })
-}
+    // Activar/desactivar análisis (basado en tu array `enabledAnalyses`)
+    enable_elliott_wave: settings.enabledAnalyses?.includes("elliott_wave") ?? false,
+    enable_fibonacci: settings.enabledAnalyses?.includes("fibonacci") ?? false,
+    enable_chart_patterns: settings.enabledAnalyses?.includes("chart_patterns") ?? false,
+    enable_support_resistance: settings.enabledAnalyses?.includes("support_resistance") ?? false,
 
-const mapAiSettingsToBackend = (settings) => ({
-  // Timeframe
-  timeframe: settings.analysisTimeframe || "H1",
+    // Pesos
+    elliott_wave_weight: settings.elliottWaveWeight ?? 0.25,
+    fibonacci_weight: settings.fibonacciWeight ?? 0.25,
+    chart_patterns_weight: settings.chartPatternsWeight ?? 0.25,
+    support_resistance_weight: settings.supportResistanceWeight ?? 0.25,
 
-  // Confluencia y riesgo
-  confluence_threshold: settings.confluenceThreshold ?? 0.6,
-  risk_per_trade: settings.riskPerTrade ?? 2.0,
-  lot_size: settings.lotSize ?? 0.1,
-  atr_multiplier_sl: settings.atrMultiplierSl ?? 2.0,
-  risk_reward_ratio: settings.riskRewardRatio ?? 2.0,
-
-  // Activar/desactivar análisis (basado en tu array `enabledAnalyses`)
-  enable_elliott_wave: settings.enabledAnalyses?.includes("elliott_wave") ?? false,
-  enable_fibonacci: settings.enabledAnalyses?.includes("fibonacci") ?? false,
-  enable_chart_patterns: settings.enabledAnalyses?.includes("chart_patterns") ?? false,
-  enable_support_resistance: settings.enabledAnalyses?.includes("support_resistance") ?? false,
-
-  // Pesos
-  elliott_wave_weight: settings.elliottWaveWeight ?? 0.25,
-  fibonacci_weight: settings.fibonacciWeight ?? 0.25,
-  chart_patterns_weight: settings.chartPatternsWeight ?? 0.25,
-  support_resistance_weight: settings.supportResistanceWeight ?? 0.25,
-
-  // Config por defecto (si aún no la manejas en el frontend)
-  trader_type: settings.traderType || null,
-  trader_timeframes: settings.traderTimeframes || ["H1"],
-  trading_strategy: settings.tradingStrategy || null,
-  strategy_timeframes: settings.strategyTimeframes || ["H1"],
-  execution_type: settings.executionType || "market",
-  allowed_execution_types: settings.allowedExecutionTypes || ["market"],
-  combined_timeframes: settings.combinedTimeframes || [],
-  custom_weights: settings.customWeights || {},
-  risk_management_locked: settings.riskManagementLocked ?? false,
-})
+    // Config por defecto (si aún no la manejas en el frontend)
+    trader_type: settings.traderType || null,
+    trader_timeframes: settings.traderTimeframes || ["H1"],
+    trading_strategy: settings.tradingStrategy || null,
+    strategy_timeframes: settings.strategyTimeframes || ["H1"],
+    execution_type: settings.executionType || "market",
+    allowed_execution_types: settings.allowedExecutionTypes || ["market"],
+    combined_timeframes: settings.combinedTimeframes || [],
+    custom_weights: settings.customWeights || {},
+    risk_management_locked: settings.riskManagementLocked ?? false,
+  })
 
   const clearProfileFunc = async () => {
     try {
@@ -1145,6 +1143,65 @@ const mapAiSettingsToBackend = (settings) => ({
       description: "Peso de los niveles de soporte y resistencia en el análisis conjunto",
     },
   ]
+
+  useEffect(() => {
+    if (settingsTab === 2) {
+      // Asumiendo que la pestaña 2 es confluencias de IA
+      loadAIConfiguration()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsTab])
+
+  const loadAIConfiguration = async () => {
+    try {
+      console.log("🔄 Cargando configuración de IA...")
+
+      const response = await api.loadAISettings()
+
+      if (response.success && response.ai_settings) {
+        console.log("✅ Configuración de IA cargada:", response.ai_settings)
+        setAiSettings(response.ai_settings)
+        showSnackbar("✅ Configuración de IA cargada", "success")
+      } else {
+        console.log("ℹ️ No hay configuración guardada, usando valores por defecto")
+        const defaultSettings = api.getDefaultAISettings()
+        setAiSettings(defaultSettings)
+      }
+    } catch (error) {
+      console.error("❌ Error cargando configuración de IA:", error)
+      showSnackbar("❌ Error cargando configuración de IA", "error")
+
+      // Usar configuración por defecto en caso de error
+      const defaultSettings = api.getDefaultAISettings()
+      setAiSettings(defaultSettings)
+    }
+  }
+
+  const handleSaveAIConfiguration = async () => {
+    try {
+      console.log("🔄 Guardando configuración de IA específica...")
+
+      // Validar configuración antes de guardar
+      const validation = api.validateAISettings(aiSettings)
+      if (!validation.isValid) {
+        showSnackbar(`❌ Error de validación: ${validation.errors.join(", ")}`, "error")
+        return
+      }
+
+      const response = await api.saveAISettings(aiSettings)
+
+      if (response.success) {
+        console.log("✅ Configuración de IA guardada:", response.ai_settings)
+        showSnackbar("✅ Configuración de IA guardada correctamente", "success")
+        onClose() // Cerrar el diálogo
+      } else {
+        showSnackbar("❌ Error guardando configuración de IA", "error")
+      }
+    } catch (error) {
+      console.error("❌ Error guardando configuración de IA:", error)
+      showSnackbar("❌ Error guardando configuración de IA", "error")
+    }
+  }
 
   return (
     <Dialog
@@ -1847,28 +1904,24 @@ const mapAiSettingsToBackend = (settings) => ({
                 </Grid>
 
                 <Grid item xs={12}>
-                      {!riskManagement.isLocked && (
-                        <Button style={{marginbutton: 2}}
-                          variant="contained"
-                          color="primary"
-                          fullWidth
-                          onClick={handleLockRiskConfig}
-                          disabled={!mt5State.connected}
-                        >
-                          Bloquear Gestión de Riesgo
-                        </Button>
-                      )}
+                  {!riskManagement.isLocked && (
+                    <Button
+                      style={{ marginbutton: 2 }}
+                      variant="contained"
+                      color="primary"
+                      fullWidth
+                      onClick={handleLockRiskConfig}
+                      disabled={!mt5State.connected}
+                    >
+                      Bloquear Gestión de Riesgo
+                    </Button>
+                  )}
 
-                      {riskManagement.isLocked && (
-                        <Typography
-                          variant="body1"
-                          color="success.main"
-                          align="center"
-                          sx={{ mt: 2 }}
-                        >
-                          🔒 Gestión de riesgo bloqueada
-                        </Typography>
-                      )}
+                  {riskManagement.isLocked && (
+                    <Typography variant="body1" color="success.main" align="center" sx={{ mt: 2 }}>
+                      🔒 Gestión de riesgo bloqueada
+                    </Typography>
+                  )}
                   <Box sx={{ mt: 2, p: 3, backgroundColor: "rgba(0,255,136,0.1)", borderRadius: 1 }}>
                     <Typography variant="h6" sx={{ color: "#00ff88", mb: 3, fontWeight: "bold", textAlign: "center" }}>
                       📊 Resumen Detallado de Configuración
@@ -2052,665 +2105,677 @@ const mapAiSettingsToBackend = (settings) => ({
           </Box>
         )}
 
-       {/* PESTAÑA 2: CONFLUENCIAS IA - COMPLETA */}
-{settingsTab === 2 && (
-  <Box sx={{ p: 3 }}>
-    {/* Sección Tipo de Trader */}
-    <Card
-      sx={{
-        backgroundColor: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(0,255,255,0.2)",
-        p: 3,
-        mb: 3,
-      }}
-    >
-      <Typography variant="h6" sx={{ mb: 2, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
-        {"👤 Tipo de Trader"}
-      </Typography>
-
-      <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(33,150,243,0.1)", color: "#ffffff" }}>
-        <Typography variant="body2">
-          {"Selecciona tu tipo de trader. Esto determinará automáticamente las temporalidades disponibles y seleccionará una aleatoriamente para el análisis."}
-        </Typography>
-      </Alert>
-
-      <Box
-        sx={{
-          mb: 3,
-          p: 2,
-          backgroundColor: "rgba(0,255,136,0.1)",
-          borderRadius: 1,
-          border: "1px solid rgba(0,255,136,0.3)",
-        }}
-      >
-        <Typography variant="body2" sx={{ color: "#00ff88", fontWeight: "bold", mb: 1 }}>
-          {"Tipo Seleccionado:"}
-        </Typography>
-        <Chip
-          label={TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.label || "Day Trading"}
-          sx={{ backgroundColor: "#00ff88", color: "#000000", fontWeight: "bold", mr: 2 }}
-        />
-        <Chip
-          label={`Temporalidad: ${aiSettings.analysisTimeframe || "H1"} (Auto-seleccionada)`}
-          sx={{ backgroundColor: "rgba(0,255,255,0.7)", color: "#000000", fontWeight: "bold" }}
-        />
-      </Box>
-
-      <Grid container spacing={2}>
-        {TRADING_STRATEGIES.map((strategy) => (
-          <Grid item xs={12} md={6} key={strategy.key}>
+        {/* PESTAÑA 2: CONFLUENCIAS IA - COMPLETA */}
+        {settingsTab === 2 && (
+          <Box sx={{ p: 3 }}>
+            {/* Sección Tipo de Trader */}
             <Card
               sx={{
-                p: 2.5,
-                height: "100%",
-                backgroundColor:
-                  selectedStrategy === strategy.key ? "rgba(0,255,136,0.15)" : "rgba(255,255,255,0.02)",
-                border:
-                  selectedStrategy === strategy.key
-                    ? "2px solid rgba(0,255,136,0.5)"
-                    : "1px solid rgba(255,255,255,0.1)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  backgroundColor: "rgba(0,255,255,0.08)",
-                  transform: "translateY(-2px)",
-                },
-              }}
-              onClick={() => handleStrategyChange(strategy.key)}
-            >
-              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                <Box
-                  sx={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: "50%",
-                    border: "2px solid",
-                    borderColor: selectedStrategy === strategy.key ? "#00ff88" : "rgba(255,255,255,0.5)",
-                    backgroundColor: selectedStrategy === strategy.key ? "#00ff88" : "transparent",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    mt: 0.5,
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {selectedStrategy === strategy.key && (
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        backgroundColor: "#000000",
-                      }}
-                    />
-                  )}
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ color: "#ffffff", fontWeight: "bold", mb: 1 }}>
-                    {strategy.label}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.4, mb: 2 }}>
-                    {strategy.description}
-                  </Typography>
-                  <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1 }}>
-                    <Chip
-                      label={`Riesgo: ${strategy.riskLevel}`}
-                      size="small"
-                      sx={{
-                        backgroundColor:
-                          strategy.riskLevel === "Alto"
-                            ? "rgba(255,107,107,0.2)"
-                            : strategy.riskLevel === "Medio-Alto"
-                            ? "rgba(255,193,7,0.2)"
-                            : strategy.riskLevel === "Medio"
-                            ? "rgba(33,150,243,0.2)"
-                            : "rgba(76,175,80,0.2)",
-                        color: "#ffffff",
-                      }}
-                    />
-                  </Box>
-                  <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)" }}>
-                    {"Temporalidades disponibles: " + strategy.timeframes.join(", ")}
-                  </Typography>
-                </Box>
-              </Box>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </Card>
-
-    {/* Estrategias Avanzadas */}
-    <Card
-      sx={{
-        backgroundColor: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(255,165,0,0.2)",
-        p: 3,
-        mb: 3,
-      }}
-    >
-      <Typography variant="h6" sx={{ mb: 2, color: "#ffa500", display: "flex", alignItems: "center", gap: 1 }}>
-        {"📊 Estrategias de Trading"}
-      </Typography>
-
-      <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(255,165,0,0.1)", color: "#ffffff" }}>
-        <Typography variant="body2">
-          {"Selecciona la estrategia de trading específica que deseas utilizar. Cada estrategia tiene sus propias características y temporalidades recomendadas."}
-        </Typography>
-      </Alert>
-
-      <Box
-        sx={{
-          mb: 3,
-          p: 2,
-          backgroundColor: "rgba(255,165,0,0.1)",
-          borderRadius: 1,
-          border: "1px solid rgba(255,165,0,0.3)",
-        }}
-      >
-        <Typography variant="body2" sx={{ color: "#ffa500", fontWeight: "bold", mb: 1 }}>
-          {"Estrategia Seleccionada:"}
-        </Typography>
-        <Chip
-          label={TRADING_STRATEGIES_ADVANCED.find((s) => s.key === (aiSettings.selectedTradingStrategy || "maleta"))?.label || "Estrategia Maleta"}
-          sx={{ backgroundColor: "#ffa500", color: "#000000", fontWeight: "bold", mr: 2 }}
-        />
-        <Chip
-          label={`Temporalidades: ${TRADING_STRATEGIES_ADVANCED.find((s) => s.key === (aiSettings.selectedTradingStrategy || "maleta"))?.timeframes.join(", ") || "M15, M30, H1, H4"}`}
-          sx={{ backgroundColor: "rgba(255,165,0,0.7)", color: "#000000", fontWeight: "bold" }}
-        />
-      </Box>
-
-      <Grid container spacing={2}>
-        {TRADING_STRATEGIES_ADVANCED.map((strategy) => (
-          <Grid item xs={12} md={6} key={strategy.key}>
-            <Card
-              sx={{
-                p: 2.5,
-                height: "100%",
-                backgroundColor:
-                  (aiSettings.selectedTradingStrategy || "maleta") === strategy.key
-                    ? "rgba(255,165,0,0.15)"
-                    : "rgba(255,255,255,0.02)",
-                border:
-                  (aiSettings.selectedTradingStrategy || "maleta") === strategy.key
-                    ? "2px solid rgba(255,165,0,0.5)"
-                    : "1px solid rgba(255,255,255,0.1)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  backgroundColor: "rgba(255,165,0,0.08)",
-                  transform: "translateY(-2px)",
-                },
-              }}
-              onClick={() => {
-                setAiSettings((prev) => ({
-                  ...prev,
-                  selectedTradingStrategy: strategy.key,
-                }))
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(0,255,255,0.2)",
+                p: 3,
+                mb: 3,
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                <Typography variant="h4" sx={{ fontSize: "2rem" }}>
-                  {strategy.icon}
+
+              
+              <Typography variant="h6" sx={{ mb: 2, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
+                {"👤 Tipo de Trader"}
+              </Typography>
+
+              <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(33,150,243,0.1)", color: "#ffffff" }}>
+                <Typography variant="body2">
+                  {
+                    "Selecciona tu tipo de trader. Esto determinará automáticamente las temporalidades disponibles y seleccionará una aleatoriamente para el análisis."
+                  }
                 </Typography>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="h6" sx={{ color: "#ffffff", mb: 1, fontWeight: "bold" }}>
-                    {strategy.label}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "#cccccc", mb: 2, lineHeight: 1.4 }}>
-                    {strategy.description}
-                  </Typography>
-                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                    {strategy.timeframes.map((tf) => (
-                      <Chip
-                        key={tf}
-                        label={tf}
-                        size="small"
-                        sx={{
-                          backgroundColor: "rgba(255,165,0,0.2)",
-                          color: "#ffa500",
-                          fontSize: "0.7rem",
-                        }}
-                      />
-                    ))}
-                  </Box>
-                </Box>
-              </Box>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </Card>
+              </Alert>
 
-    {/* Configuración General de Confluencias */}
-    <Card
-      sx={{
-        backgroundColor: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(0,255,255,0.2)",
-        p: 3,
-        mb: 3,
-      }}
-    >
-      <Typography variant="h6" sx={{ mb: 3, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
-        {"🎯 Configuración General de Confluencias"}
-      </Typography>
-
-      <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(33,150,243,0.1)", color: "#ffffff" }}>
-        <Typography variant="body2">
-          {`Selecciona la temporalidad de análisis de las opciones combinadas disponibles para ${TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.label || "Day Trading"} y ${TRADING_STRATEGIES_ADVANCED.find((s) => s.key === (aiSettings.selectedTradingStrategy || "maleta"))?.label || "Estrategia Maleta"}. Temporalidades disponibles: ${getCombinedTimeframes().join(", ")}`}
-        </Typography>
-      </Alert>
-
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={4}>
-          <FormControl fullWidth>
-            <InputLabel sx={{ color: "#00ffff" }}>{"Temporalidad de Análisis"}</InputLabel>
-            <Select
-              value={aiSettings.analysisTimeframe || getCombinedTimeframes()[0] || "H1"}
-              onChange={(e) =>
-                setAiSettings((prev) => ({
-                  ...prev,
-                  analysisTimeframe: e.target.value,
-                }))
-              }
-              sx={{ color: "#ffffff" }}
-            >
-              {getCombinedTimeframes().map((timeframe) => (
-                <MenuItem key={timeframe} value={timeframe}>
-                  {timeframe === "M1" && "1 Minuto"}
-                  {timeframe === "M5" && "5 Minutos"}
-                  {timeframe === "M15" && "15 Minutos"}
-                  {timeframe === "M30" && "30 Minutos"}
-                  {timeframe === "H1" && "1 Hora"}
-                  {timeframe === "H4" && "4 Horas"}
-                  {timeframe === "D1" && "1 Día"}
-                  {timeframe === "W1" && "1 Semana"}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <FormControl fullWidth>
-            <InputLabel sx={{ color: "#00ffff" }}>{"Umbral de Confluencia"}</InputLabel>
-            <Select
-              value={aiSettings.confluenceThreshold ?? 0.6}
-              onChange={(e) =>
-                setAiSettings((prev) => ({
-                  ...prev,
-                  confluenceThreshold: Number(e.target.value),
-                }))
-              }
-              sx={{ color: "#ffffff" }}
-            >
-              <MenuItem value={0.5}>{"50% - Conservador"}</MenuItem>
-              <MenuItem value={0.6}>{"60% - Balanceado"}</MenuItem>
-              <MenuItem value={0.7}>{"70% - Agresivo"}</MenuItem>
-              <MenuItem value={0.8}>{"80% - Muy Agresivo"}</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-
-        <Grid item xs={12} md={4}>
-          <Box
-            sx={{
-              p: 2,
-              backgroundColor: "rgba(156,39,176,0.1)",
-              borderRadius: 1,
-              border: "1px solid rgba(156,39,176,0.3)",
-              height: "100%",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "center",
-            }}
-          >
-            <Typography variant="body2" sx={{ color: "#9c27b0", mb: 1, fontWeight: "bold" }}>
-              {"Configuración Actual:"}
-            </Typography>
-            <Chip
-              label={`Tipo: ${TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.label || "Day Trading"}`}
-              sx={{ backgroundColor: "#9c27b0", color: "#ffffff", mb: 1 }}
-            />
-            <Chip
-              label={`Temporalidad: ${aiSettings.analysisTimeframe || TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.timeframes[0] || "H1"}`}
-              sx={{ backgroundColor: "rgba(156,39,176,0.7)", color: "#ffffff", mb: 1 }}
-            />
-            <Chip
-              label={`Umbral: ${((aiSettings.confluenceThreshold ?? 0.6) * 100).toFixed(0)}%`}
-              sx={{ backgroundColor: "rgba(156,39,176,0.5)", color: "#ffffff" }}
-            />
-          </Box>
-        </Grid>
-      </Grid>
-    </Card>
-
-    {/* Tipos de Análisis Técnico */}
-    <Card
-      sx={{
-        backgroundColor: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(0,255,255,0.2)",
-        p: 3,
-        mb: 3,
-      }}
-    >
-      <Typography variant="h6" sx={{ mb: 2, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
-        {"🔧 Tipos de Análisis Técnico"}
-      </Typography>
-
-      <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(33,150,243,0.1)", color: "#ffffff" }}>
-        <Typography variant="body2">
-          {"Selecciona qué tipos de análisis técnico utilizará la IA para generar confluencias y señales de trading."}
-        </Typography>
-      </Alert>
-
-      <Grid container spacing={2}>
-        {ANALYSIS_TYPES.map((analysis) => (
-          <Grid item xs={12} md={6} key={analysis.key}>
-            <Card
-              sx={{
-                p: 2.5,
-                height: "100%",
-                backgroundColor: (aiSettings?.enabledAnalyses || []).includes(analysis.key)
-                  ? "rgba(0,255,136,0.1)"
-                  : "rgba(255,255,255,0.02)",
-                border: (aiSettings?.enabledAnalyses || []).includes(analysis.key)
-                  ? "1px solid rgba(0,255,136,0.3)"
-                  : "1px solid rgba(255,255,255,0.1)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  backgroundColor: "rgba(0,255,255,0.08)",
-                  transform: "translateY(-2px)",
-                },
-              }}
-              onClick={() => {
-                const isEnabled = (aiSettings?.enabledAnalyses || []).includes(analysis.key)
-                if (isEnabled) {
-                  setAiSettings((prev) => ({
-                    ...prev,
-                    enabledAnalyses: (prev.enabledAnalyses || []).filter((a) => a !== analysis.key),
-                  }))
-                } else {
-                  setAiSettings((prev) => ({
-                    ...prev,
-                    enabledAnalyses: [...(prev.enabledAnalyses || []), analysis.key],
-                  }))
-                }
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                <Switch
-                  checked={(aiSettings?.enabledAnalyses || []).includes(analysis.key)}
-                  onChange={(e) => {
-                    e.stopPropagation()
-                    if (e.target.checked) {
-                      setAiSettings((prev) => ({
-                        ...prev,
-                        enabledAnalyses: [...(prev.enabledAnalyses || []), analysis.key],
-                      }))
-                    } else {
-                      setAiSettings((prev) => ({
-                        ...prev,
-                        enabledAnalyses: (prev.enabledAnalyses || []).filter((a) => a !== analysis.key),
-                      }))
-                    }
-                  }}
-                  sx={{
-                    "& .MuiSwitch-switchBase.Mui-checked": { color: "#00ff88" },
-                    "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#00ff88" },
-                  }}
-                />
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ color: "#ffffff", fontWeight: "bold", mb: 1 }}>
-                    {analysis.label}
-                  </Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
-                    {analysis.description}
-                  </Typography>
-                </Box>
-              </Box>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-    </Card>
-    {/* Pesos de Análisis */}
-    <Card
-      sx={{
-        backgroundColor: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(0,255,255,0.2)",
-        p: 3,
-        mb: 3,
-      }}
-    >
-      <Typography variant="h6" sx={{ mb: 2, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
-        {"⚖️ Pesos de Análisis"}
-      </Typography>
-
-      <Alert severity="warning" sx={{ mb: 3, backgroundColor: "rgba(255,193,7,0.1)", color: "#ffffff" }}>
-        <Typography variant="body2">
-          {"Los pesos determinan la importancia relativa de cada análisis. Deben sumar exactamente 1.0 (100%)."}
-        </Typography>
-      </Alert>
-
-      <Grid container spacing={2}>
-        {WEIGHT_FIELDS.map((weight) => (
-          <Grid item xs={12} md={6} key={weight.key}>
-            <Card
-              sx={{
-                p: 2.5,
-                height: "100%",
-                backgroundColor: "rgba(255,255,255,0.02)",
-                border: "1px solid rgba(255,255,255,0.1)",
-              }}
-            >
-              <Typography variant="subtitle1" sx={{ color: "#ffffff", fontWeight: "bold", mb: 1 }}>
-                {weight.label}
-              </Typography>
-              <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mb: 2, lineHeight: 1.4 }}>
-                {weight.description}
-              </Typography>
-              <TextField
-                fullWidth
-                label={`Peso ${weight.label}`}
-                type="number"
-                step="0.05"
-                inputProps={{ min: 0, max: 1 }}
-                value={aiSettings?.[weight.key] ?? 0.25}
-                onChange={(e) => {
-                  const value = Number.parseFloat(e.target.value) || 0
-                  setAiSettings((prev) => ({
-                    ...prev,
-                    [weight.key]: value,
-                    ...(weight.key === "supportResistanceWeight" && {
-                      support_resistance_weight: value,
-                    }),
-                  }))
-                }}
+              <Box
                 sx={{
-                  "& .MuiInputLabel-root": { color: "#00ffff" },
-                  "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: "rgba(0,255,136,0.1)",
+                  borderRadius: 1,
+                  border: "1px solid rgba(0,255,136,0.3)",
                 }}
-                helperText={`Valor actual: ${((aiSettings?.[weight.key] ?? 0.25) * 100).toFixed(1)}%`}
-              />
+              >
+                <Typography variant="body2" sx={{ color: "#00ff88", fontWeight: "bold", mb: 1 }}>
+                  {"Tipo Seleccionado:"}
+                </Typography>
+                <Chip
+                  label={TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.label || "Day Trading"}
+                  sx={{ backgroundColor: "#00ff88", color: "#000000", fontWeight: "bold", mr: 2 }}
+                />
+                <Chip
+                  label={`Temporalidad: ${aiSettings.analysisTimeframe || "H1"} (Auto-seleccionada)`}
+                  sx={{ backgroundColor: "rgba(0,255,255,0.7)", color: "#000000", fontWeight: "bold" }}
+                />
+              </Box>
+
+              <Grid container spacing={2}>
+                {TRADING_STRATEGIES.map((strategy) => (
+                  <Grid item xs={12} md={6} key={strategy.key}>
+                    <Card
+                      sx={{
+                        p: 2.5,
+                        height: "100%",
+                        backgroundColor:
+                          selectedStrategy === strategy.key ? "rgba(0,255,136,0.15)" : "rgba(255,255,255,0.02)",
+                        border:
+                          selectedStrategy === strategy.key
+                            ? "2px solid rgba(0,255,136,0.5)"
+                            : "1px solid rgba(255,255,255,0.1)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          backgroundColor: "rgba(0,255,255,0.08)",
+                          transform: "translateY(-2px)",
+                        },
+                      }}
+                      onClick={() => handleStrategyChange(strategy.key)}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                        <Box
+                          sx={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: "50%",
+                            border: "2px solid",
+                            borderColor: selectedStrategy === strategy.key ? "#00ff88" : "rgba(255,255,255,0.5)",
+                            backgroundColor: selectedStrategy === strategy.key ? "#00ff88" : "transparent",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            mt: 0.5,
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          {selectedStrategy === strategy.key && (
+                            <Box
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                backgroundColor: "#000000",
+                              }}
+                            />
+                          )}
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle1" sx={{ color: "#ffffff", fontWeight: "bold", mb: 1 }}>
+                            {strategy.label}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.4, mb: 2 }}>
+                            {strategy.description}
+                          </Typography>
+                          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mb: 1 }}>
+                            <Chip
+                              label={`Riesgo: ${strategy.riskLevel}`}
+                              size="small"
+                              sx={{
+                                backgroundColor:
+                                  strategy.riskLevel === "Alto"
+                                    ? "rgba(255,107,107,0.2)"
+                                    : strategy.riskLevel === "Medio-Alto"
+                                      ? "rgba(255,193,7,0.2)"
+                                      : strategy.riskLevel === "Medio"
+                                        ? "rgba(33,150,243,0.2)"
+                                        : "rgba(76,175,80,0.2)",
+                                color: "#ffffff",
+                              }}
+                            />
+                          </Box>
+                          <Typography variant="caption" sx={{ color: "rgba(255,255,255,0.6)" }}>
+                            {"Temporalidades disponibles: " + strategy.timeframes.join(", ")}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
             </Card>
-          </Grid>
-        ))}
-      </Grid>
 
-      {/* Validación de pesos */}
-      <Box
-        sx={{
-          mt: 3,
-          p: 2.5,
-          backgroundColor: weightsValid ? "rgba(76,175,80,0.1)" : "rgba(244,67,54,0.1)",
-          borderRadius: 1,
-          border: weightsValid ? "1px solid rgba(76,175,80,0.3)" : "1px solid rgba(244,67,54,0.3)",
-        }}
-      >
-        <Typography
-          variant="body1"
-          sx={{
-            color: weightsValid ? "#00ff88" : "#ff4444",
-            fontWeight: "bold",
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-          }}
-        >
-          {weightsValid ? "✅" : "⚠️"}
-          {`Total: ${totalWeights.toFixed(2)} (${(totalWeights * 100).toFixed(1)}%)`}
-        </Typography>
-        {!weightsValid && (
-          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mt: 1 }}>
-            {"Los pesos deben sumar exactamente 1.0 para que el análisis funcione correctamente."}
-          </Typography>
-        )}
-      </Box>
-    </Card>
-
-    {/* Tipo de Ejecución MT5 */}
-    <Card
-      sx={{
-        backgroundColor: "rgba(255,255,255,0.05)",
-        border: "1px solid rgba(0,255,255,0.2)",
-        p: 3,
-        mb: 3,
-      }}
-    >
-      <Typography variant="h6" sx={{ mb: 2, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
-        {"🛠️ Tipo de Ejecución MT5"}
-      </Typography>
-
-      <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(33,150,243,0.1)", color: "#ffffff" }}>
-        <Typography variant="body2">
-          {"El servidor determinará automáticamente si la señal es de compra o venta. Selecciona cómo se ejecutará la orden."}
-        </Typography>
-      </Alert>
-
-      <Box
-        sx={{
-          mb: 3,
-          p: 2,
-          backgroundColor: "rgba(0,255,136,0.1)",
-          borderRadius: 1,
-          border: "1px solid rgba(0,255,136,0.3)",
-        }}
-      >
-        <Typography variant="body2" sx={{ color: "#00ff88", fontWeight: "bold", mb: 1 }}>
-          {"Tipo Seleccionado:"}
-        </Typography>
-        <Chip
-          label={EXECUTION_TYPES.find((et) => et.key === selectedExecutionType)?.label || "Market"}
-          sx={{ backgroundColor: "#00ff88", color: "#000000", fontWeight: "bold" }}
-        />
-      </Box>
-
-      <Grid container spacing={2}>
-        {EXECUTION_TYPES.map((et) => (
-          <Grid item xs={12} md={4} key={et.key}>
+            {/* Estrategias Avanzadas */}
             <Card
               sx={{
-                p: 2.5,
-                height: "100%",
-                backgroundColor:
-                  selectedExecutionType === et.key ? "rgba(0,255,136,0.15)" : "rgba(255,255,255,0.02)",
-                border:
-                  selectedExecutionType === et.key
-                    ? "2px solid rgba(0,255,136,0.5)"
-                    : "1px solid rgba(255,255,255,0.1)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
-                "&:hover": {
-                  backgroundColor: "rgba(0,255,255,0.08)",
-                  transform: "translateY(-2px)",
-                },
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(255,165,0,0.2)",
+                p: 3,
+                mb: 3,
               }}
-              onClick={() => handleExecutionTypeChange(et.key)}
             >
-              <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
-                <Box
+              <Typography variant="h6" sx={{ mb: 2, color: "#ffa500", display: "flex", alignItems: "center", gap: 1 }}>
+                {"📊 Estrategias de Trading"}
+              </Typography>
+
+              <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(255,165,0,0.1)", color: "#ffffff" }}>
+                <Typography variant="body2">
+                  {
+                    "Selecciona la estrategia de trading específica que deseas utilizar. Cada estrategia tiene sus propias características y temporalidades recomendadas."
+                  }
+                </Typography>
+              </Alert>
+
+              <Box
+                sx={{
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: "rgba(255,165,0,0.1)",
+                  borderRadius: 1,
+                  border: "1px solid rgba(255,165,0,0.3)",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#ffa500", fontWeight: "bold", mb: 1 }}>
+                  {"Estrategia Seleccionada:"}
+                </Typography>
+                <Chip
+                  label={
+                    TRADING_STRATEGIES_ADVANCED.find((s) => s.key === (aiSettings.selectedTradingStrategy || "maleta"))
+                      ?.label || "Estrategia Maleta"
+                  }
+                  sx={{ backgroundColor: "#ffa500", color: "#000000", fontWeight: "bold", mr: 2 }}
+                />
+                <Chip
+                  label={`Temporalidades: ${TRADING_STRATEGIES_ADVANCED.find((s) => s.key === (aiSettings.selectedTradingStrategy || "maleta"))?.timeframes.join(", ") || "M15, M30, H1, H4"}`}
+                  sx={{ backgroundColor: "rgba(255,165,0,0.7)", color: "#000000", fontWeight: "bold" }}
+                />
+              </Box>
+
+              <Grid container spacing={2}>
+                {TRADING_STRATEGIES_ADVANCED.map((strategy) => (
+                  <Grid item xs={12} md={6} key={strategy.key}>
+                    <Card
+                      sx={{
+                        p: 2.5,
+                        height: "100%",
+                        backgroundColor:
+                          (aiSettings.selectedTradingStrategy || "maleta") === strategy.key
+                            ? "rgba(255,165,0,0.15)"
+                            : "rgba(255,255,255,0.02)",
+                        border:
+                          (aiSettings.selectedTradingStrategy || "maleta") === strategy.key
+                            ? "2px solid rgba(255,165,0,0.5)"
+                            : "1px solid rgba(255,255,255,0.1)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          backgroundColor: "rgba(255,165,0,0.08)",
+                          transform: "translateY(-2px)",
+                        },
+                      }}
+                      onClick={() => {
+                        setAiSettings((prev) => ({
+                          ...prev,
+                          selectedTradingStrategy: strategy.key,
+                        }))
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                        <Typography variant="h4" sx={{ fontSize: "2rem" }}>
+                          {strategy.icon}
+                        </Typography>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="h6" sx={{ color: "#ffffff", mb: 1, fontWeight: "bold" }}>
+                            {strategy.label}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "#cccccc", mb: 2, lineHeight: 1.4 }}>
+                            {strategy.description}
+                          </Typography>
+                          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                            {strategy.timeframes.map((tf) => (
+                              <Chip
+                                key={tf}
+                                label={tf}
+                                size="small"
+                                sx={{
+                                  backgroundColor: "rgba(255,165,0,0.2)",
+                                  color: "#ffa500",
+                                  fontSize: "0.7rem",
+                                }}
+                              />
+                            ))}
+                          </Box>
+                        </Box>
+                      </Box>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Card>
+
+            {/* Configuración General de Confluencias */}
+            <Card
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(0,255,255,0.2)",
+                p: 3,
+                mb: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 3, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
+                {"🎯 Configuración General de Confluencias"}
+              </Typography>
+
+              <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(33,150,243,0.1)", color: "#ffffff" }}>
+                <Typography variant="body2">
+                  {`Selecciona la temporalidad de análisis de las opciones combinadas disponibles para ${TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.label || "Day Trading"} y ${TRADING_STRATEGIES_ADVANCED.find((s) => s.key === (aiSettings.selectedTradingStrategy || "maleta"))?.label || "Estrategia Maleta"}. Temporalidades disponibles: ${getCombinedTimeframes().join(", ")}`}
+                </Typography>
+              </Alert>
+
+              <Grid container spacing={3}>
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <InputLabel sx={{ color: "#00ffff" }}>{"Temporalidad de Análisis"}</InputLabel>
+                    <Select
+                      value={aiSettings.analysisTimeframe || getCombinedTimeframes()[0] || "H1"}
+                      onChange={(e) =>
+                        setAiSettings((prev) => ({
+                          ...prev,
+                          analysisTimeframe: e.target.value,
+                        }))
+                      }
+                      sx={{ color: "#ffffff" }}
+                    >
+                      {getCombinedTimeframes().map((timeframe) => (
+                        <MenuItem key={timeframe} value={timeframe}>
+                          {timeframe === "M1" && "1 Minuto"}
+                          {timeframe === "M5" && "5 Minutos"}
+                          {timeframe === "M15" && "15 Minutos"}
+                          {timeframe === "M30" && "30 Minutos"}
+                          {timeframe === "H1" && "1 Hora"}
+                          {timeframe === "H4" && "4 Horas"}
+                          {timeframe === "D1" && "1 Día"}
+                          {timeframe === "W1" && "1 Semana"}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth>
+                    <InputLabel sx={{ color: "#00ffff" }}>{"Umbral de Confluencia"}</InputLabel>
+                    <Select
+                      value={aiSettings.confluenceThreshold ?? 0.6}
+                      onChange={(e) =>
+                        setAiSettings((prev) => ({
+                          ...prev,
+                          confluenceThreshold: Number(e.target.value),
+                        }))
+                      }
+                      sx={{ color: "#ffffff" }}
+                    >
+                      <MenuItem value={0.5}>{"50% - Conservador"}</MenuItem>
+                      <MenuItem value={0.6}>{"60% - Balanceado"}</MenuItem>
+                      <MenuItem value={0.7}>{"70% - Agresivo"}</MenuItem>
+                      <MenuItem value={0.8}>{"80% - Muy Agresivo"}</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} md={4}>
+                  <Box
+                    sx={{
+                      p: 2,
+                      backgroundColor: "rgba(156,39,176,0.1)",
+                      borderRadius: 1,
+                      border: "1px solid rgba(156,39,176,0.3)",
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Typography variant="body2" sx={{ color: "#9c27b0", mb: 1, fontWeight: "bold" }}>
+                      {"Configuración Actual:"}
+                    </Typography>
+                    <Chip
+                      label={`Tipo: ${TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.label || "Day Trading"}`}
+                      sx={{ backgroundColor: "#9c27b0", color: "#ffffff", mb: 1 }}
+                    />
+                    <Chip
+                      label={`Temporalidad: ${aiSettings.analysisTimeframe || TRADING_STRATEGIES.find((s) => s.key === selectedStrategy)?.timeframes[0] || "H1"}`}
+                      sx={{ backgroundColor: "rgba(156,39,176,0.7)", color: "#ffffff", mb: 1 }}
+                    />
+                    <Chip
+                      label={`Umbral: ${((aiSettings.confluenceThreshold ?? 0.6) * 100).toFixed(0)}%`}
+                      sx={{ backgroundColor: "rgba(156,39,176,0.5)", color: "#ffffff" }}
+                    />
+                  </Box>
+                </Grid>
+              </Grid>
+            </Card>
+
+            {/* Tipos de Análisis Técnico */}
+            <Card
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(0,255,255,0.2)",
+                p: 3,
+                mb: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 2, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
+                {"🔧 Tipos de Análisis Técnico"}
+              </Typography>
+
+              <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(33,150,243,0.1)", color: "#ffffff" }}>
+                <Typography variant="body2">
+                  {
+                    "Selecciona qué tipos de análisis técnico utilizará la IA para generar confluencias y señales de trading."
+                  }
+                </Typography>
+              </Alert>
+
+              <Grid container spacing={2}>
+                {ANALYSIS_TYPES.map((analysis) => (
+                  <Grid item xs={12} md={6} key={analysis.key}>
+                    <Card
+                      sx={{
+                        p: 2.5,
+                        height: "100%",
+                        backgroundColor: (aiSettings?.enabledAnalyses || []).includes(analysis.key)
+                          ? "rgba(0,255,136,0.1)"
+                          : "rgba(255,255,255,0.02)",
+                        border: (aiSettings?.enabledAnalyses || []).includes(analysis.key)
+                          ? "1px solid rgba(0,255,136,0.3)"
+                          : "1px solid rgba(255,255,255,0.1)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          backgroundColor: "rgba(0,255,255,0.08)",
+                          transform: "translateY(-2px)",
+                        },
+                      }}
+                      onClick={() => {
+                        const isEnabled = (aiSettings?.enabledAnalyses || []).includes(analysis.key)
+                        if (isEnabled) {
+                          setAiSettings((prev) => ({
+                            ...prev,
+                            enabledAnalyses: (prev.enabledAnalyses || []).filter((a) => a !== analysis.key),
+                          }))
+                        } else {
+                          setAiSettings((prev) => ({
+                            ...prev,
+                            enabledAnalyses: [...(prev.enabledAnalyses || []), analysis.key],
+                          }))
+                        }
+                      }}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                        <Switch
+                          checked={(aiSettings?.enabledAnalyses || []).includes(analysis.key)}
+                          onChange={(e) => {
+                            e.stopPropagation()
+                            if (e.target.checked) {
+                              setAiSettings((prev) => ({
+                                ...prev,
+                                enabledAnalyses: [...(prev.enabledAnalyses || []), analysis.key],
+                              }))
+                            } else {
+                              setAiSettings((prev) => ({
+                                ...prev,
+                                enabledAnalyses: (prev.enabledAnalyses || []).filter((a) => a !== analysis.key),
+                              }))
+                            }
+                          }}
+                          sx={{
+                            "& .MuiSwitch-switchBase.Mui-checked": { color: "#00ff88" },
+                            "& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track": { backgroundColor: "#00ff88" },
+                          }}
+                        />
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle1" sx={{ color: "#ffffff", fontWeight: "bold", mb: 1 }}>
+                            {analysis.label}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
+                            {analysis.description}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Card>
+            {/* Pesos de Análisis */}
+            <Card
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(0,255,255,0.2)",
+                p: 3,
+                mb: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 2, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
+                {"⚖️ Pesos de Análisis"}
+              </Typography>
+
+              <Alert severity="warning" sx={{ mb: 3, backgroundColor: "rgba(255,193,7,0.1)", color: "#ffffff" }}>
+                <Typography variant="body2">
+                  {"Los pesos determinan la importancia relativa de cada análisis. Deben sumar exactamente 1.0 (100%)."}
+                </Typography>
+              </Alert>
+
+              <Grid container spacing={2}>
+                {WEIGHT_FIELDS.map((weight) => (
+                  <Grid item xs={12} md={6} key={weight.key}>
+                    <Card
+                      sx={{
+                        p: 2.5,
+                        height: "100%",
+                        backgroundColor: "rgba(255,255,255,0.02)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                      }}
+                    >
+                      <Typography variant="subtitle1" sx={{ color: "#ffffff", fontWeight: "bold", mb: 1 }}>
+                        {weight.label}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mb: 2, lineHeight: 1.4 }}>
+                        {weight.description}
+                      </Typography>
+                      <TextField
+                        fullWidth
+                        label={`Peso ${weight.label}`}
+                        type="number"
+                        step="0.05"
+                        inputProps={{ min: 0, max: 1 }}
+                        value={aiSettings?.[weight.key] ?? 0.25}
+                        onChange={(e) => {
+                          const value = Number.parseFloat(e.target.value) || 0
+                          setAiSettings((prev) => ({
+                            ...prev,
+                            [weight.key]: value,
+                            ...(weight.key === "supportResistanceWeight" && {
+                              support_resistance_weight: value,
+                            }),
+                          }))
+                        }}
+                        sx={{
+                          "& .MuiInputLabel-root": { color: "#00ffff" },
+                          "& .MuiOutlinedInput-root": { color: "#ffffff" },
+                        }}
+                        helperText={`Valor actual: ${((aiSettings?.[weight.key] ?? 0.25) * 100).toFixed(1)}%`}
+                      />
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+
+              {/* Validación de pesos */}
+              <Box
+                sx={{
+                  mt: 3,
+                  p: 2.5,
+                  backgroundColor: weightsValid ? "rgba(76,175,80,0.1)" : "rgba(244,67,54,0.1)",
+                  borderRadius: 1,
+                  border: weightsValid ? "1px solid rgba(76,175,80,0.3)" : "1px solid rgba(244,67,54,0.3)",
+                }}
+              >
+                <Typography
+                  variant="body1"
                   sx={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: "50%",
-                    border: "2px solid",
-                    borderColor: selectedExecutionType === et.key ? "#00ff88" : "rgba(255,255,255,0.5)",
-                    backgroundColor: selectedExecutionType === et.key ? "#00ff88" : "transparent",
+                    color: weightsValid ? "#00ff88" : "#ff4444",
+                    fontWeight: "bold",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    mt: 0.5,
-                    transition: "all 0.2s ease",
+                    gap: 1,
                   }}
                 >
-                  {selectedExecutionType === et.key && (
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        backgroundColor: "#000000",
-                      }}
-                    />
-                  )}
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle1" sx={{ color: "#ffffff", fontWeight: "bold", mb: 1 }}>
-                    {et.label}
+                  {weightsValid ? "✅" : "⚠️"}
+                  {`Total: ${totalWeights.toFixed(2)} (${(totalWeights * 100).toFixed(1)}%)`}
+                </Typography>
+                {!weightsValid && (
+                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", mt: 1 }}>
+                    {"Los pesos deben sumar exactamente 1.0 para que el análisis funcione correctamente."}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
-                    {et.description}
-                  </Typography>
-                </Box>
+                )}
               </Box>
             </Card>
-          </Grid>
-        ))}
-      </Grid>
 
-      <Box
-        sx={{
-          mt: 3,
-          p: 2.5,
-          backgroundColor: "rgba(156,39,176,0.1)",
-          borderRadius: 1,
-          border: "1px solid rgba(156,39,176,0.3)",
-        }}
-      >
-        <Typography variant="body2" sx={{ color: "#bb86fc", fontWeight: "bold", mb: 2 }}>
-          {"🔄 Cómo funcionará tu selección:"}
-        </Typography>
-        {selectedExecutionType === "market" && (
-          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)" }}>
-            {"• Las señales se ejecutarán inmediatamente al precio actual del mercado"}
-            <br />
-            {"• No hay espera - entrada instantánea cuando llegue la señal"}
-          </Typography>
-        )}
-        {selectedExecutionType === "limit" && (
-          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)" }}>
-            {"• Señal COMPRA = Buy Limit (espera precio más bajo para entrar)"}
-            <br />
-            {"• Señal VENTA = Sell Limit (espera precio más alto para entrar)"}
-            <br />
-            {"• Mejor precio de entrada, pero puede no ejecutarse si el precio no llega"}
-          </Typography>
-        )}
-        {selectedExecutionType === "stop" && (
-          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)" }}>
-            {"• Señal COMPRA = Buy Stop (entra cuando el precio rompe resistencia hacia arriba)"}
-            <br />
-            {"• Señal VENTA = Sell Stop (entra cuando el precio rompe soporte hacia abajo)"}
-            <br />
-            {"• Ideal para seguir tendencias y rupturas de niveles clave"}
-          </Typography>
-        )}
-      </Box>
-    </Card>
+            {/* Tipo de Ejecución MT5 */}
+            <Card
+              sx={{
+                backgroundColor: "rgba(255,255,255,0.05)",
+                border: "1px solid rgba(0,255,255,0.2)",
+                p: 3,
+                mb: 3,
+              }}
+            >
+              <Typography variant="h6" sx={{ mb: 2, color: "#00ffff", display: "flex", alignItems: "center", gap: 1 }}>
+                {"🛠️ Tipo de Ejecución MT5"}
+              </Typography>
 
+              <Alert severity="info" sx={{ mb: 3, backgroundColor: "rgba(33,150,243,0.1)", color: "#ffffff" }}>
+                <Typography variant="body2">
+                  {
+                    "El servidor determinará automáticamente si la señal es de compra o venta. Selecciona cómo se ejecutará la orden."
+                  }
+                </Typography>
+              </Alert>
+
+              <Box
+                sx={{
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: "rgba(0,255,136,0.1)",
+                  borderRadius: 1,
+                  border: "1px solid rgba(0,255,136,0.3)",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#00ff88", fontWeight: "bold", mb: 1 }}>
+                  {"Tipo Seleccionado:"}
+                </Typography>
+                <Chip
+                  label={EXECUTION_TYPES.find((et) => et.key === selectedExecutionType)?.label || "Market"}
+                  sx={{ backgroundColor: "#00ff88", color: "#000000", fontWeight: "bold" }}
+                />
+              </Box>
+
+              <Grid container spacing={2}>
+                {EXECUTION_TYPES.map((et) => (
+                  <Grid item xs={12} md={4} key={et.key}>
+                    <Card
+                      sx={{
+                        p: 2.5,
+                        height: "100%",
+                        backgroundColor:
+                          selectedExecutionType === et.key ? "rgba(0,255,136,0.15)" : "rgba(255,255,255,0.02)",
+                        border:
+                          selectedExecutionType === et.key
+                            ? "2px solid rgba(0,255,136,0.5)"
+                            : "1px solid rgba(255,255,255,0.1)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                        "&:hover": {
+                          backgroundColor: "rgba(0,255,255,0.08)",
+                          transform: "translateY(-2px)",
+                        },
+                      }}
+                      onClick={() => handleExecutionTypeChange(et.key)}
+                    >
+                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+                        <Box
+                          sx={{
+                            width: 20,
+                            height: 20,
+                            borderRadius: "50%",
+                            border: "2px solid",
+                            borderColor: selectedExecutionType === et.key ? "#00ff88" : "rgba(255,255,255,0.5)",
+                            backgroundColor: selectedExecutionType === et.key ? "#00ff88" : "transparent",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            mt: 0.5,
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          {selectedExecutionType === et.key && (
+                            <Box
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                backgroundColor: "#000000",
+                              }}
+                            />
+                          )}
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="subtitle1" sx={{ color: "#ffffff", fontWeight: "bold", mb: 1 }}>
+                            {et.label}
+                          </Typography>
+                          <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.7)", lineHeight: 1.4 }}>
+                            {et.description}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+
+              <Box
+                sx={{
+                  mt: 3,
+                  p: 2.5,
+                  backgroundColor: "rgba(156,39,176,0.1)",
+                  borderRadius: 1,
+                  border: "1px solid rgba(156,39,176,0.3)",
+                }}
+              >
+                <Typography variant="body2" sx={{ color: "#bb86fc", fontWeight: "bold", mb: 2 }}>
+                  {"🔄 Cómo funcionará tu selección:"}
+                </Typography>
+                {selectedExecutionType === "market" && (
+                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)" }}>
+                    {"• Las señales se ejecutarán inmediatamente al precio actual del mercado"}
+                    <br />
+                    {"• No hay espera - entrada instantánea cuando llegue la señal"}
+                  </Typography>
+                )}
+                {selectedExecutionType === "limit" && (
+                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)" }}>
+                    {"• Señal COMPRA = Buy Limit (espera precio más bajo para entrar)"}
+                    <br />
+                    {"• Señal VENTA = Sell Limit (espera precio más alto para entrar)"}
+                    <br />
+                    {"• Mejor precio de entrada, pero puede no ejecutarse si el precio no llega"}
+                  </Typography>
+                )}
+                {selectedExecutionType === "stop" && (
+                  <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.8)" }}>
+                    {"• Señal COMPRA = Buy Stop (entra cuando el precio rompe resistencia hacia arriba)"}
+                    <br />
+                    {"• Señal VENTA = Sell Stop (entra cuando el precio rompe soporte hacia abajo)"}
+                    <br />
+                    {"• Ideal para seguir tendencias y rupturas de niveles clave"}
+                  </Typography>
+                )}
+              </Box>
+            </Card>
 
             {/* Sección 5: Sesiones Forex */}
             <Card
@@ -2817,8 +2882,41 @@ const mapAiSettingsToBackend = (settings) => ({
                   }
                 </Typography>
               </Alert>
+
+          
             </Card>
+                                    <Box sx={{
+              position: 'sticky',
+              bottom: 20,
+              zIndex: 1000,
+              display: 'flex',
+              justifyContent: 'center',
+              mt: 3,
+              mb: 2
+            }}>
+              <Button 
+                variant="contained" 
+                onClick={handleSaveAIConfiguration}
+                sx={{
+                  backgroundColor: '#00ff88',
+                  color: '#000',
+                  fontWeight: 'bold',
+                  px: 4,
+                  py: 1.5,
+                  boxShadow: '0 4px 12px rgba(0, 255, 136, 0.3)',
+                  '&:hover': {
+                    backgroundColor: '#00cc66',
+                    boxShadow: '0 6px 16px rgba(0, 255, 136, 0.4)'
+                  }
+                }}
+                startIcon={<SaveIcon />}
+              >
+                💾
+              </Button>
+            </Box>
+
           </Box>
+          
         )}
 
         {/* PESTAÑA 3: EJECUCIÓN AUTOMÁTICA */}
@@ -2842,38 +2940,39 @@ const mapAiSettingsToBackend = (settings) => ({
         <Button onClick={onClose} sx={{ color: "#ffffff" }}>
           {"Cancelar"}
         </Button>
-<Button
-  onClick={() => {
-    try {
-      const userId = localStorage.getItem("userId")
+        <Button
+          onClick={() => {
+            if (settingsTab === 2) {
+              // Solo para la pestaña de confluencias de IA
+              handleSaveAIConfiguration()
+            } else {
+              // Para otras pestañas, mantener la lógica original
+              try {
+                const userId = localStorage.getItem("userId")
 
-      const payload = {
-        user_id: userId,
-        login: mt5Form.login || "",
-        server: mt5Form.server || "",
-        account_type: mt5Form.type || "demo",
-        ai_settings: mapAiSettingsToBackend(aiSettings),  // 👈 Asegurate de pasar el estado completo
-      }
+                const payload = {
+                  user_id: userId,
+                  login: mt5Form.login || "",
+                  server: mt5Form.server || "",
+                  account_type: mt5Form.type || "demo",
+                  ai_settings: mapAiSettingsToBackend(aiSettings),
+                }
 
-      console.log("🔍 Payload enviado al back:", payload)
-console.log("🔍 Payload enviado al back:", JSON.stringify(payload, null, 2))
-      dispatch(saveMT5Profile(payload))
+                console.log("🔍 Payload enviado al back:", payload)
+                console.log("🔍 Payload enviado al back:", JSON.stringify(payload, null, 2))
+                dispatch(saveMT5Profile(payload))
 
-      showSnackbar("✅ Configuración guardada correctamente", "success")
-      onClose()
-    } catch (err) {
-      console.error("❌ Error construyendo payload:", err)
-    }
-  }}
-  disabled={settingsTab === 2 && !weightsValid}
->
-  {"Guardar Configuración"}
-</Button>
-
-
-
-
-
+                showSnackbar("✅ Configuración guardada correctamente", "success")
+                onClose()
+              } catch (err) {
+                console.error("❌ Error construyendo payload:", err)
+              }
+            }
+          }}
+          
+        >
+          {settingsTab === 2 ? "Guardar Configuración de IA" : "Guardar Configuración"}
+        </Button>
         QA
       </DialogActions>
     </Dialog>

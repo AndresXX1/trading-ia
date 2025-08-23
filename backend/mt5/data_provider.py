@@ -2,7 +2,7 @@ import MetaTrader5 as mt5
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 import asyncio
 import logging
 
@@ -55,6 +55,149 @@ class MT5DataProvider:
                 self.logger.info(f"Cargados {len(self.available_symbols)} símbolos")
         except Exception as e:
             self.logger.error(f"Error loading symbols: {e}")
+
+    def _get_compatible_filling_mode(self, symbol_info):
+        """
+        Determinar el modo de llenado compatible con el símbolo
+        """
+        try:
+            # Obtener los modos de llenado soportados por el símbolo
+            filling_modes = symbol_info.filling_mode
+            
+            # Priorizar ORDER_FILLING_FOK si está disponible
+            if filling_modes & mt5.SYMBOL_FILLING_FOK:
+                self.logger.info("Using ORDER_FILLING_FOK")
+                return mt5.ORDER_FILLING_FOK
+            
+            # Si no, usar ORDER_FILLING_IOC
+            elif filling_modes & mt5.SYMBOL_FILLING_IOC:
+                self.logger.info("Using ORDER_FILLING_IOC") 
+                return mt5.ORDER_FILLING_IOC
+            
+            # Como último recurso, usar RETURN (más compatible)
+            else:
+                self.logger.info("Using ORDER_FILLING_RETURN (fallback)")
+                return mt5.ORDER_FILLING_RETURN
+                
+        except Exception as e:
+            self.logger.warning(f"Error detecting filling mode, using FOK: {e}")
+            return mt5.ORDER_FILLING_FOK
+
+    # ========== MÉTODOS DE TRADING ==========
+
+    def execute_order(self, symbol: str, order_type: str, volume: float, 
+                     price: float = None, sl: float = None, tp: float = None, 
+                     comment: str = "") -> Dict:
+        """
+        Ejecutar una orden de mercado
+        """
+        if not self.connected:
+            self.logger.error("❌ No conectado a MT5")
+            return {"success": False, "error": "Not connected to MT5"}
+        
+        try:
+            # Validar símbolo
+            symbol_info = mt5.symbol_info(symbol)
+            if symbol_info is None:
+                self.logger.error(f"❌ Símbolo {symbol} no encontrado")
+                return {"success": False, "error": f"Symbol {symbol} not found"}
+            
+            # Asegurar que el símbolo está visible
+            if not symbol_info.visible:
+                self.logger.warning(f"⚠️ Símbolo {symbol} no visible, seleccionando...")
+                mt5.symbol_select(symbol, True)
+
+            # Preparar la solicitud de orden
+            order_type = order_type.upper()
+            if order_type == "BUY":
+                trade_type = mt5.ORDER_TYPE_BUY
+                tick = mt5.symbol_info_tick(symbol)
+                order_price = tick.ask if tick else price
+            elif order_type == "SELL":
+                trade_type = mt5.ORDER_TYPE_SELL
+                tick = mt5.symbol_info_tick(symbol)
+                order_price = tick.bid if tick else price
+            else:
+                return {"success": False, "error": f"Invalid order type: {order_type}"}
+
+            # Usar precio actual si no se proporciona
+            if price is None:
+                price = order_price
+
+            # Validar volumen
+            if volume < symbol_info.volume_min:
+                return {"success": False, "error": f"Volume too small. Minimum: {symbol_info.volume_min}"}
+            if volume > symbol_info.volume_max:
+                return {"success": False, "error": f"Volume too large. Maximum: {symbol_info.volume_max}"}
+
+            # Truncar comentario a máximo 31 caracteres (MT5 limit)
+            if comment and len(comment) > 31:
+                comment = comment[:31]
+            
+            # Determinar el tipo de llenado compatible con el símbolo
+            filling_mode = self._get_compatible_filling_mode(symbol_info)
+            
+            # Crear la solicitud de orden
+            request = {
+                "action": mt5.TRADE_ACTION_DEAL,
+                "symbol": symbol,
+                "volume": volume,
+                "type": trade_type,
+                "price": price,
+                "deviation": 20,
+                "magic": 234000,
+                "comment": comment,
+                "type_time": mt5.ORDER_TIME_GTC,
+                "type_filling": filling_mode,
+            }
+
+            # Agregar SL y TP si se proporcionan
+            if sl is not None:
+                request["sl"] = sl
+            if tp is not None:
+                request["tp"] = tp
+            
+            self.logger.info(f"📤 Enviando orden: {request}")
+
+            # Enviar la orden
+            result = mt5.order_send(request)
+            
+            if result is None:
+                error_msg = f"MT5 order_send returned None. Last error: {mt5.last_error()}"
+                self.logger.error(error_msg)
+                return {"success": False, "error": error_msg}
+            
+            if result.retcode != mt5.TRADE_RETCODE_DONE:
+                return {
+                    "success": False, 
+                    "error": f"Order failed: {result.comment}",
+                    "retcode": result.retcode
+                }
+            
+            self.logger.info(f"✅ Orden ejecutada exitosamente - Ticket: {result.order}")
+            
+            return {
+                "success": True,
+                "ticket": result.order,
+                "price": result.price,
+                "volume": result.volume,
+                "comment": result.comment,
+                "message": "Order executed successfully"
+            }
+                
+        except Exception as e:
+            self.logger.error(f"Error executing order: {e}")
+            return {"success": False, "error": str(e)}
+
+    def place_order(self, symbol: str, order_type: str, volume: float, 
+                   price: float = None, sl: float = None, tp: float = None, 
+                   comment: str = "") -> Dict:
+        """
+        Alias para execute_order para compatibilidad
+        """
+        return self.execute_order(symbol, order_type, volume, price, sl, tp, comment)
+
+    # ========== MÉTODOS EXISTENTES (MANTENER) ==========
     
     def get_available_pairs(self) -> List[Dict]:
         """Obtener pares disponibles para trading"""

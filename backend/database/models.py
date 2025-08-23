@@ -183,6 +183,122 @@ class AnalysisConfig(BaseModel):
     # Pesos personalizados adicionales
     custom_weights: dict = {}
 
+class AISettingsRequest(BaseModel):
+    """Modelo para recibir la configuración de IA desde el frontend"""
+    # Configuración básica
+    timeframe: str = "H1"
+    confluence_threshold: float = Field(default=0.6, ge=0, le=1)
+    risk_per_trade: float = Field(default=2.0, gt=0, le=10)
+    lot_size: float = Field(default=0.1, gt=0)
+    atr_multiplier_sl: float = Field(default=2.0, gt=0)
+    risk_reward_ratio: float = Field(default=2.0, gt=0)
+    
+    # Análisis habilitados
+    enable_elliott_wave: bool = True
+    enable_fibonacci: bool = True
+    enable_chart_patterns: bool = True
+    enable_support_resistance: bool = True
+    
+    # Pesos de análisis
+    elliott_wave_weight: float = Field(default=0.25, ge=0, le=1)
+    fibonacci_weight: float = Field(default=0.25, ge=0, le=1)
+    chart_patterns_weight: float = Field(default=0.25, ge=0, le=1)
+    support_resistance_weight: float = Field(default=0.25, ge=0, le=1)
+    
+    # Configuración de ejecución
+    execution_type: str = "market"
+    allowed_execution_types: List[str] = ["market"]
+    
+    # Tipos de trader y estrategias
+    trader_type: Optional[str] = None
+    trading_strategy: Optional[str] = None
+    trader_timeframes: List[str] = ["H1"]
+    strategy_timeframes: List[str] = ["H1"]
+    
+    # Configuración adicional del frontend
+    analysisTimeframe: Optional[str] = None
+    enabledAnalyses: List[str] = []
+    selectedExecutionType: Optional[str] = None
+    selectedStrategy: Optional[str] = None
+    selectedTradingStrategy: Optional[str] = None
+    
+    # Configuración avanzada
+    combined_timeframes: List[str] = []
+    custom_weights: Dict[str, Any] = {}
+    risk_management_locked: bool = False
+
+    class Config:
+        json_encoders = {
+            datetime: lambda dt: dt.isoformat()
+        }
+
+class AISettings(BaseModel):
+    """Modelo para almacenar en la base de datos"""
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    user_id: str
+    
+    # Configuración básica
+    timeframe: str = "H1"
+    confluence_threshold: float = 0.6
+    risk_per_trade: float = 2.0
+    lot_size: float = 0.1
+    atr_multiplier_sl: float = 2.0
+    risk_reward_ratio: float = 2.0
+    
+    # Análisis habilitados
+    enable_elliott_wave: bool = True
+    enable_fibonacci: bool = True
+    enable_chart_patterns: bool = True
+    enable_support_resistance: bool = True
+    
+    # Pesos de análisis
+    elliott_wave_weight: float = 0.25
+    fibonacci_weight: float = 0.25
+    chart_patterns_weight: float = 0.25
+    support_resistance_weight: float = 0.25
+    
+    # Configuración de ejecución
+    execution_type: str = "market"
+    allowed_execution_types: List[str] = ["market"]
+    
+    # Tipos de trader y estrategias
+    trader_type: Optional[str] = None
+    trading_strategy: Optional[str] = None
+    trader_timeframes: List[str] = ["H1"]
+    strategy_timeframes: List[str] = ["H1"]
+    
+    # Configuración adicional
+    combined_timeframes: List[str] = []
+    custom_weights: Dict[str, Any] = {}
+    risk_management_locked: bool = False
+    
+    # Datos adicionales del frontend (opcionales)
+    frontend_config: Optional[Dict[str, Any]] = None
+    
+    # Metadatos
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        allow_population_by_field_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {
+            ObjectId: str,
+            datetime: lambda dt: dt.isoformat()
+        }
+
+class AISettingsResponse(BaseModel):
+    """Modelo de respuesta para el frontend"""
+    success: bool
+    ai_settings: Optional[Dict[str, Any]] = None
+    message: str
+    timestamp: str
+
+class AISettingsValidation(BaseModel):
+    """Modelo para validación de configuración"""
+    is_valid: bool
+    errors: List[str] = []
+
 # Modelos de Usuario
 class User(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")

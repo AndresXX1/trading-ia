@@ -59,6 +59,8 @@ api.interceptors.response.use(
 )
 
 // ✅ FUNCIONES DE FALLBACK MEJORADAS
+
+
 const generateFallbackData = (symbol, timeframe, count) => {
   console.log(`🔄 Generando datos de fallback para ${symbol}`)
 
@@ -192,7 +194,146 @@ async login(email, password) {
     throw error
   }
 },
+  async saveAISettings(aiSettings) {
+    try {
+      console.log("🔄 Guardando configuración de IA específica:", aiSettings)
 
+      const response = await api.post("/api/mt5/ai-settings/save", aiSettings)
+
+      return {
+        success: response.data.success,
+        ai_settings: response.data.ai_settings,
+        message: response.data.message,
+        timestamp: response.data.timestamp,
+      }
+    } catch (error) {
+      console.error("❌ Error guardando configuración de IA:", error)
+      throw error
+    }
+  },
+
+  /**
+   * Cargar configuración de confluencias de IA
+   * @returns {Promise} Configuración de IA del usuario
+   */
+  async loadAISettings() {
+    try {
+      console.log("🔄 Cargando configuración de IA específica...")
+
+      const response = await api.get("/api/mt5/ai-settings/load")
+
+      return {
+        success: response.data.success,
+        ai_settings: response.data.ai_settings,
+        message: response.data.message,
+        timestamp: response.data.timestamp,
+      }
+    } catch (error) {
+      console.error("❌ Error cargando configuración de IA:", error)
+      throw error
+    }
+  },
+
+  /**
+   * Resetear configuración de IA a valores por defecto
+   * @returns {Promise} Configuración por defecto
+   */
+  async resetAISettings() {
+    try {
+      console.log("🔄 Reseteando configuración de IA...")
+
+      const response = await api.delete("/api/mt5/ai-settings/reset")
+
+      return {
+        success: response.data.success,
+        ai_settings: response.data.ai_settings,
+        message: response.data.message,
+        timestamp: response.data.timestamp,
+      }
+    } catch (error) {
+      console.error("❌ Error reseteando configuración de IA:", error)
+      throw error
+    }
+  },
+
+  /**
+   * Validar configuración de IA antes de guardar
+   * @param {Object} aiSettings - Configuración a validar
+   * @returns {Object} Resultado de validación
+   */
+  validateAISettings(aiSettings) {
+    const errors = []
+
+    // Validar confluence_threshold
+    if (aiSettings.confluence_threshold < 0 || aiSettings.confluence_threshold > 1) {
+      errors.push("El umbral de confluencia debe estar entre 0 y 1")
+    }
+
+    // Validar risk_per_trade
+    if (aiSettings.risk_per_trade <= 0 || aiSettings.risk_per_trade > 10) {
+      errors.push("El riesgo por operación debe estar entre 0.1% y 10%")
+    }
+
+    // Validar lot_size
+    if (aiSettings.lot_size <= 0) {
+      errors.push("El tamaño del lote debe ser mayor a 0")
+    }
+
+    // Validar pesos (deben sumar 1.0)
+    const totalWeight =
+      aiSettings.elliott_wave_weight +
+      aiSettings.fibonacci_weight +
+      aiSettings.chart_patterns_weight +
+      aiSettings.support_resistance_weight
+
+    if (Math.abs(totalWeight - 1.0) > 0.01) {
+      errors.push("Los pesos de análisis deben sumar 1.0 (100%)")
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors,
+    }
+  },
+
+  /**
+   * Obtener configuración por defecto de IA
+   * @returns {Object} Configuración por defecto
+   */
+  getDefaultAISettings() {
+    return {
+      // Configuración básica
+      timeframe: "H1",
+      confluence_threshold: 0.6,
+      risk_per_trade: 2.0,
+      lot_size: 0.1,
+      atr_multiplier_sl: 2.0,
+      risk_reward_ratio: 2.0,
+
+      // Análisis habilitados
+      enable_elliott_wave: true,
+      enable_fibonacci: true,
+      enable_chart_patterns: true,
+      enable_support_resistance: true,
+
+      // Pesos de análisis
+      elliott_wave_weight: 0.25,
+      fibonacci_weight: 0.25,
+      chart_patterns_weight: 0.25,
+      support_resistance_weight: 0.25,
+
+      // Configuración de trader
+      trader_type: null,
+      trader_timeframes: ["H1"],
+      trading_strategy: null,
+      strategy_timeframes: ["H1"],
+      execution_type: "market",
+      allowed_execution_types: ["market"],
+      combined_timeframes: [],
+      custom_weights: {},
+      risk_management_locked: false,
+    }
+  },
 
   async getRiskLockStatus() {
     const response = await api.get("/api/auth/auth/risk/status")

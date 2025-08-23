@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from bson import ObjectId
 import asyncio
-
+from database.models import AISettingsRequest, AISettings, AISettingsResponse, AISettingsValidation
 # Intentar usar el paquete oficial de MetaTrader5 si está instalado
 try:
     import MetaTrader5 as mt5  # type: ignore
@@ -361,7 +361,339 @@ class ProfileResponse(BaseModel):
     profile: Optional[Profile] = None
     timestamp: str
 
+# ENDPOINTS DE CONFIGURACIÓN DE IA
+# ------------------------
 
+@router.post("/ai-settings/save", response_model=AISettingsResponse)
+async def save_ai_settings(
+    ai_settings_data: AISettingsRequest,
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_database)
+):
+    """
+    Guarda la configuración de IA específica del usuario
+    """
+    try:
+        user_id = str(current_user.id)
+        
+        # Validar la configuración antes de guardar
+        validation = validate_ai_settings(ai_settings_data)
+        if not validation.is_valid:
+            return JSONResponse(
+                status_code=400,
+                content=AISettingsResponse(
+                    success=False,
+                    message=f"Error de validación: {', '.join(validation.errors)}",
+                    timestamp=datetime.utcnow().isoformat()
+                ).model_dump()
+            )
+        
+        # Preparar datos adicionales del frontend
+        frontend_config = {
+            "analysisTimeframe": ai_settings_data.analysisTimeframe,
+            "enabledAnalyses": ai_settings_data.enabledAnalyses,
+            "selectedExecutionType": ai_settings_data.selectedExecutionType,
+            "selectedStrategy": ai_settings_data.selectedStrategy,
+            "selectedTradingStrategy": ai_settings_data.selectedTradingStrategy,
+        }
+        
+        # Crear documento de configuración
+        now = datetime.utcnow()
+        ai_settings_doc = {
+            "user_id": user_id,
+            "timeframe": ai_settings_data.timeframe,
+            "confluence_threshold": ai_settings_data.confluence_threshold,
+            "risk_per_trade": ai_settings_data.risk_per_trade,
+            "lot_size": ai_settings_data.lot_size,
+            "atr_multiplier_sl": ai_settings_data.atr_multiplier_sl,
+            "risk_reward_ratio": ai_settings_data.risk_reward_ratio,
+            
+            # Análisis habilitados
+            "enable_elliott_wave": ai_settings_data.enable_elliott_wave,
+            "enable_fibonacci": ai_settings_data.enable_fibonacci,
+            "enable_chart_patterns": ai_settings_data.enable_chart_patterns,
+            "enable_support_resistance": ai_settings_data.enable_support_resistance,
+            
+            # Pesos de análisis
+            "elliott_wave_weight": ai_settings_data.elliott_wave_weight,
+            "fibonacci_weight": ai_settings_data.fibonacci_weight,
+            "chart_patterns_weight": ai_settings_data.chart_patterns_weight,
+            "support_resistance_weight": ai_settings_data.support_resistance_weight,
+            
+            # Configuración de ejecución
+            "execution_type": ai_settings_data.execution_type,
+            "allowed_execution_types": ai_settings_data.allowed_execution_types,
+            
+            # Tipos de trader y estrategias
+            "trader_type": ai_settings_data.trader_type,
+            "trading_strategy": ai_settings_data.trading_strategy,
+            "trader_timeframes": ai_settings_data.trader_timeframes,
+            "strategy_timeframes": ai_settings_data.strategy_timeframes,
+            
+            # Configuración avanzada
+            "combined_timeframes": ai_settings_data.combined_timeframes,
+            "custom_weights": ai_settings_data.custom_weights,
+            "risk_management_locked": ai_settings_data.risk_management_locked,
+            
+            # Configuración del frontend
+            "frontend_config": frontend_config,
+            
+            # Metadatos
+            "updated_at": now
+        }
+        
+        # Actualizar o crear configuración
+        result = await db.ai_settings.update_one(
+            {"user_id": user_id},
+            {
+                "$set": ai_settings_doc,
+                "$setOnInsert": {"created_at": now}
+            },
+            upsert=True
+        )
+        
+        # Preparar respuesta
+        response_data = prepare_for_json(ai_settings_doc)
+        
+        logger.info(f"✅ AI settings saved for user {user_id}")
+        
+        return JSONResponse(
+            content=AISettingsResponse(
+                success=True,
+                ai_settings=response_data,
+                message="Configuración de IA guardada correctamente",
+                timestamp=now.isoformat()
+            ).model_dump()
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Error saving AI settings for user {current_user.id}: {e}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content=AISettingsResponse(
+                success=False,
+                message=f"Error interno del servidor: {str(e)}",
+                timestamp=datetime.utcnow().isoformat()
+            ).model_dump()
+        )
+
+
+@router.get("/ai-settings/load", response_model=AISettingsResponse)
+async def load_ai_settings(
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_database)
+):
+    """
+    Carga la configuración de IA específica del usuario
+    """
+    try:
+        user_id = str(current_user.id)
+        
+        # Buscar configuración existente
+        ai_settings_doc = await db.ai_settings.find_one({"user_id": user_id})
+        
+        if not ai_settings_doc:
+            # Si no existe, devolver configuración por defecto
+            default_settings = get_default_ai_settings()
+            
+            return JSONResponse(
+                content=AISettingsResponse(
+                    success=True,
+                    ai_settings=default_settings,
+                    message="Configuración por defecto cargada (no se encontró configuración guardada)",
+                    timestamp=datetime.utcnow().isoformat()
+                ).model_dump()
+            )
+        
+        # Preparar datos para respuesta
+        response_data = prepare_for_json(ai_settings_doc)
+        
+        logger.info(f"✅ AI settings loaded for user {user_id}")
+        
+        return JSONResponse(
+            content=AISettingsResponse(
+                success=True,
+                ai_settings=response_data,
+                message="Configuración de IA cargada correctamente",
+                timestamp=datetime.utcnow().isoformat()
+            ).model_dump()
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Error loading AI settings for user {current_user.id}: {e}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content=AISettingsResponse(
+                success=False,
+                message=f"Error interno del servidor: {str(e)}",
+                timestamp=datetime.utcnow().isoformat()
+            ).model_dump()
+        )
+
+
+@router.delete("/ai-settings/reset", response_model=AISettingsResponse)
+async def reset_ai_settings(
+    current_user: User = Depends(get_current_user),
+    db=Depends(get_database)
+):
+    """
+    Resetea la configuración de IA a valores por defecto
+    """
+    try:
+        user_id = str(current_user.id)
+        
+        # Eliminar configuración existente
+        await db.ai_settings.delete_one({"user_id": user_id})
+        
+        # Obtener configuración por defecto
+        default_settings = get_default_ai_settings()
+        
+        logger.info(f"✅ AI settings reset for user {user_id}")
+        
+        return JSONResponse(
+            content=AISettingsResponse(
+                success=True,
+                ai_settings=default_settings,
+                message="Configuración de IA reseteada a valores por defecto",
+                timestamp=datetime.utcnow().isoformat()
+            ).model_dump()
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Error resetting AI settings for user {current_user.id}: {e}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content=AISettingsResponse(
+                success=False,
+                message=f"Error interno del servidor: {str(e)}",
+                timestamp=datetime.utcnow().isoformat()
+            ).model_dump()
+        )
+
+
+# ------------------------
+# FUNCIONES AUXILIARES
+# ------------------------
+
+def validate_ai_settings(ai_settings: AISettingsRequest) -> AISettingsValidation:
+    """
+    Valida la configuración de IA antes de guardar
+    """
+    errors = []
+    
+    try:
+        # Validar confluence_threshold
+        if not 0 <= ai_settings.confluence_threshold <= 1:
+            errors.append("El umbral de confluencia debe estar entre 0 y 1")
+        
+        # Validar risk_per_trade
+        if not 0.1 <= ai_settings.risk_per_trade <= 10:
+            errors.append("El riesgo por operación debe estar entre 0.1% y 10%")
+        
+        # Validar lot_size
+        if ai_settings.lot_size <= 0:
+            errors.append("El tamaño del lote debe ser mayor a 0")
+        
+        # Validar ATR multiplier
+        if ai_settings.atr_multiplier_sl <= 0:
+            errors.append("El multiplicador ATR debe ser mayor a 0")
+        
+        # Validar risk reward ratio
+        if ai_settings.risk_reward_ratio <= 0:
+            errors.append("La relación riesgo/beneficio debe ser mayor a 0")
+        
+        # Validar pesos (deben sumar aproximadamente 1.0)
+        total_weight = (
+            ai_settings.elliott_wave_weight +
+            ai_settings.fibonacci_weight +
+            ai_settings.chart_patterns_weight +
+            ai_settings.support_resistance_weight
+        )
+        
+        if abs(total_weight - 1.0) > 0.01:
+            errors.append("Los pesos de análisis deben sumar 1.0 (100%)")
+        
+        # Validar que cada peso esté entre 0 y 1
+        weights = [
+            ai_settings.elliott_wave_weight,
+            ai_settings.fibonacci_weight,
+            ai_settings.chart_patterns_weight,
+            ai_settings.support_resistance_weight
+        ]
+        
+        for i, weight in enumerate(weights):
+            if not 0 <= weight <= 1:
+                weight_names = ["Elliott Wave", "Fibonacci", "Chart Patterns", "Support/Resistance"]
+                errors.append(f"El peso de {weight_names[i]} debe estar entre 0 y 1")
+        
+        # Validar timeframes
+        valid_timeframes = ["M1", "M5", "M15", "M30", "H1", "H4", "D1", "W1", "MN1"]
+        if ai_settings.timeframe not in valid_timeframes:
+            errors.append(f"Timeframe inválido. Debe ser uno de: {', '.join(valid_timeframes)}")
+        
+        # Validar execution_type
+        valid_execution_types = ["market", "limit", "stop"]
+        if ai_settings.execution_type not in valid_execution_types:
+            errors.append(f"Tipo de ejecución inválido. Debe ser uno de: {', '.join(valid_execution_types)}")
+        
+    except Exception as e:
+        errors.append(f"Error durante la validación: {str(e)}")
+    
+    return AISettingsValidation(
+        is_valid=len(errors) == 0,
+        errors=errors
+    )
+
+
+def get_default_ai_settings() -> Dict[str, Any]:
+    """
+    Obtiene la configuración por defecto de IA
+    """
+    return {
+        # Configuración básica
+        "timeframe": "H1",
+        "confluence_threshold": 0.6,
+        "risk_per_trade": 2.0,
+        "lot_size": 0.1,
+        "atr_multiplier_sl": 2.0,
+        "risk_reward_ratio": 2.0,
+        
+        # Análisis habilitados
+        "enable_elliott_wave": True,
+        "enable_fibonacci": True,
+        "enable_chart_patterns": True,
+        "enable_support_resistance": True,
+        
+        # Pesos de análisis
+        "elliott_wave_weight": 0.25,
+        "fibonacci_weight": 0.25,
+        "chart_patterns_weight": 0.25,
+        "support_resistance_weight": 0.25,
+        
+        # Configuración de ejecución
+        "execution_type": "market",
+        "allowed_execution_types": ["market"],
+        
+        # Tipos de trader y estrategias
+        "trader_type": None,
+        "trading_strategy": None,
+        "trader_timeframes": ["H1"],
+        "strategy_timeframes": ["H1"],
+        
+        # Configuración avanzada
+        "combined_timeframes": [],
+        "custom_weights": {},
+        "risk_management_locked": False,
+        
+        # Configuración del frontend
+        "frontend_config": {
+            "analysisTimeframe": "H1",
+            "enabledAnalyses": ["elliott_wave", "fibonacci", "chart_patterns", "support_resistance"],
+            "selectedExecutionType": "market",
+            "selectedStrategy": None,
+            "selectedTradingStrategy": None,
+        }
+    }
 # ------------------------
 # Endpoints NUEVOS de Perfil y Conexión
 # ------------------------
@@ -908,6 +1240,9 @@ async def execute_order(
     """
     Ejecuta una orden en MT5
     """
+    logger.info(f"🔵 [ORDER] Received order request from user {current_user.id}")
+    logger.info(f"📦 Order data: {order_data}")
+    
     try:
         symbol = order_data.get("symbol")
         signal_type = order_data.get("signal_type")  # "buy" or "sell"
@@ -916,33 +1251,81 @@ async def execute_order(
         take_profit = order_data.get("take_profit")
         lot_size = order_data.get("lot_size", 0.1)
 
-        if not all([symbol, signal_type, entry_price]):
+        logger.info(f"📊 Parsed parameters - Symbol: {symbol}, Type: {signal_type}, Price: {entry_price}, Lot: {lot_size}")
+
+        if not all([symbol, signal_type]):
+            missing = []
+            if not symbol: missing.append("symbol")
+            if not signal_type: missing.append("signal_type")
+            
+            logger.warning(f"❌ Missing required parameters: {missing}")
             return JSONResponse(
                 status_code=400,
-                content={"error": "Symbol, signal_type, and entry_price are required"},
+                content={"error": "Symbol and signal_type are required"},
             )
 
         # Conectar a MT5 si no está conectado
+        logger.info("🔌 Checking MT5 connection...")
         if not _is_connected_safe():
-            if not hasattr(mt5_provider, "connect") or not mt5_provider.connect():
-                logger.error("Failed to connect to MT5")
+            logger.warning("MT5 not connected, attempting to connect...")
+            if not hasattr(mt5_provider, "connect"):
+                logger.error("❌ mt5_provider does not have 'connect' method")
+                return JSONResponse(
+                    status_code=503,
+                    content={"error": "MT5 provider configuration error"}
+                )
+            
+            connection_result = mt5_provider.connect()
+            logger.info(f"🔌 MT5 connection attempt result: {connection_result}")
+            
+            if not connection_result:
+                logger.error("❌ Failed to connect to MT5")
                 return JSONResponse(
                     status_code=503,
                     content={"error": "Cannot connect to MetaTrader 5"}
                 )
+        else:
+            logger.info("✅ MT5 is already connected")
 
-        # Ejecutar la orden
-        result = mt5_provider.place_order(
+        # DEBUG: Verificar métodos disponibles
+        logger.info("🔍 Checking available methods in mt5_provider...")
+        available_methods = [method for method in dir(mt5_provider) if not method.startswith('_')]
+        logger.info(f"📋 Available methods: {available_methods}")
+
+        # Verificar que existe el método execute_order
+        if not hasattr(mt5_provider, 'execute_order'):
+            logger.error("❌ mt5_provider does not have 'execute_order' method")
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "success": False,
+                    "error": "MT5 provider configuration error",
+                    "detail": "execute_order method not available",
+                    "timestamp": datetime.utcnow().isoformat(),
+                },
+            )
+
+        # Ejecutar la orden - USAR execute_order en lugar de place_order
+        logger.info(f"🚀 Executing order with MT5...")
+        logger.info(f"   Symbol: {symbol}, Type: {signal_type.upper()}, Volume: {lot_size}")
+        logger.info(f"   Price: {entry_price}, SL: {stop_loss}, TP: {take_profit}")
+
+        # USAR execute_order EN LUGAR DE place_order
+        result = mt5_provider.execute_order(
             symbol=symbol,
             order_type=signal_type.upper(),
             volume=lot_size,
             price=entry_price,
             sl=stop_loss,
             tp=take_profit,
-            comment=f"AI_Signal_{current_user.id}",
+            comment=f"AI_{str(current_user.id)[-8:]}",
         )
 
+        logger.info(f"📨 MT5 provider response: {result}")
+
         if result and result.get("success"):
+            logger.info(f"✅ Order executed successfully. Ticket: {result.get('ticket')}")
+            
             # Guardar la orden en la base de datos
             order_doc = {
                 "user_id": current_user.id,
@@ -958,7 +1341,13 @@ async def execute_order(
                 "mt5_result": prepare_for_json(result),
             }
 
-            await db.executed_orders.insert_one(order_doc)
+            try:
+                logger.info("💾 Saving order to database...")
+                insert_result = await db.executed_orders.insert_one(order_doc)
+                logger.info(f"✅ Order saved to database with ID: {insert_result.inserted_id}")
+            except Exception as db_error:
+                logger.error(f"❌ Database error: {db_error}")
+                # Continuamos aunque falle la DB, la orden ya se ejecutó en MT5
 
             response_data = {
                 "success": True,
@@ -973,9 +1362,12 @@ async def execute_order(
                 "timestamp": datetime.utcnow().isoformat(),
             }
 
+            logger.info(f"📤 Sending success response: {response_data}")
             return JSONResponse(content=response_data)
         else:
             error_msg = result.get("error", "Unknown error") if result else "Failed to execute order"
+            logger.error(f"❌ Order execution failed: {error_msg}")
+            
             return JSONResponse(
                 status_code=400,
                 content={
@@ -985,18 +1377,61 @@ async def execute_order(
                     "timestamp": datetime.utcnow().isoformat(),
                 },
             )
+
     except Exception as e:
-        logger.error(f"Error executing order: {e}", exc_info=True)
+        logger.error(f"💥 Unhandled exception in execute_order: {e}", exc_info=True)
+        logger.error(f"🔍 Exception type: {type(e).__name__}")
+        logger.error(f"📝 Exception args: {e.args}")
+        
         return JSONResponse(
             status_code=500,
             content={
                 "success": False,
-                "error": "Error executing order",
+                "error": "Internal server error executing order",
                 "detail": str(e),
                 "timestamp": datetime.utcnow().isoformat(),
             },
         )
 
+
+def _is_connected_safe():
+    """
+    Safe method to check MT5 connection with error handling
+    """
+    try:
+        logger.info("🔍 Checking MT5 connection status...")
+        
+        # Primero verificar si mt5_provider tiene el atributo connected
+        if hasattr(mt5_provider, 'connected'):
+            connected = mt5_provider.connected
+            logger.info(f"📡 MT5 connection status (direct): {connected}")
+            return connected
+        
+        # Si no, buscar otros métodos
+        if hasattr(mt5_provider, 'is_connected'):
+            connected = mt5_provider.is_connected()
+            logger.info(f"📡 MT5 connection status (is_connected): {connected}")
+            return connected
+        elif hasattr(mt5_provider, 'check_connection'):
+            connected = mt5_provider.check_connection()
+            logger.info(f"📡 MT5 connection status (check_connection): {connected}")
+            return connected
+        else:
+            logger.warning("⚠️ No method available to check MT5 connection")
+            # Fallback: intentar verificar con MetaTrader5 directamente
+            try:
+                # Intenta obtener información de la cuenta
+                account_info = mt5.account_info()
+                connected = account_info is not None
+                logger.info(f"📡 MT5 connection status (fallback): {connected}")
+                return connected
+            except:
+                logger.error("❌ Fallback connection check also failed")
+                return False
+                
+    except Exception as e:
+        logger.error(f"💥 Error checking MT5 connection: {e}")
+        return False
 
 @router.get("/orders")
 async def get_user_orders(
