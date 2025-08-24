@@ -1,19 +1,23 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit"
 import api from "../../api/index"
 
+// ========================================
+// 🔄 ASYNC THUNKS - REORGANIZADOS Y LIMPIOS
+// ========================================
+
 // Conectar a MT5 (POST /api/mt5/connect)
 export const connectMT5 = createAsyncThunk(
   "mt5/connect",
-  // eslint-disable-next-line no-unused-vars
-  async ({ login, password, server, account_type, remember = false }, { rejectWithValue, dispatch }) => {
+  async ({ login, password, server, account_type, remember = false }, { rejectWithValue }) => {
     try {
       const res = await api.connectMT5Account({ login, password, server, account_type, remember })
-      // Guardar perfil si remember (backend ya guarda, aquí guardamos UX flags/local hint)
+
       if (remember) {
         localStorage.setItem("mt5Remember", "1")
         if (login) localStorage.setItem("mt5LastLogin", String(login))
         if (server) localStorage.setItem("mt5LastServer", String(server))
       }
+
       return res
     } catch (err) {
       return rejectWithValue(err?.response?.data?.detail || err?.message || "Error conectando MT5")
@@ -41,7 +45,6 @@ export const autoConnectMT5 = createAsyncThunk("mt5/autoconnect", async (_, { re
   }
 })
 
-// Perfil en DB
 export const loadMT5Profile = createAsyncThunk("mt5/profile/load", async (_, { rejectWithValue }) => {
   try {
     const res = await api.getMT5Profile()
@@ -53,24 +56,24 @@ export const loadMT5Profile = createAsyncThunk("mt5/profile/load", async (_, { r
 
 export const saveMT5Profile = createAsyncThunk(
   "mt5/profile/save",
-  async ({ user_id, login, server, account_type, ai_settings }, { rejectWithValue }) => {
+  async ({ login, server, account_type }, { rejectWithValue }) => {
     try {
-      const res = await api.saveMT5Profile({ user_id, login, server, account_type, ai_settings })
+      const res = await api.saveMT5Profile({ login, server, account_type })
       return res
     } catch (err) {
       return rejectWithValue(err?.response?.data?.detail || err?.message || "Error guardando perfil MT5")
     }
-  }
+  },
 )
-
-
 
 export const deleteMT5Profile = createAsyncThunk("mt5/profile/delete", async (_, { rejectWithValue }) => {
   try {
     const res = await api.deleteMT5Profile()
+
     localStorage.removeItem("mt5Remember")
     localStorage.removeItem("mt5LastLogin")
     localStorage.removeItem("mt5LastServer")
+
     return res
   } catch (err) {
     return rejectWithValue(err?.response?.data?.detail || err?.message || "Error eliminando perfil MT5")
@@ -87,6 +90,9 @@ export const disconnectMT5 = createAsyncThunk("mt5/disconnect", async (_, { reje
   }
 })
 
+// ========================================
+// 🏪 INITIAL STATE - MEJORADO
+// ========================================
 const initialState = {
   connected: false,
   account: null,
@@ -96,10 +102,13 @@ const initialState = {
   profile: null,
   remember: typeof window !== "undefined" ? localStorage.getItem("mt5Remember") === "1" : false,
   autoReconnect: typeof window !== "undefined" ? localStorage.getItem("mt5AutoReconnect") === "1" : false,
-  status: "idle",
+  status: "idle", // 'idle' | 'loading' | 'succeeded' | 'failed'
   error: null,
 }
 
+// ========================================
+// 🍰 SLICE DEFINITION - REORGANIZADO
+// ========================================
 const mt5Slice = createSlice({
   name: "mt5",
   initialState,
@@ -107,21 +116,45 @@ const mt5Slice = createSlice({
     setAutoReconnect(state, action) {
       state.autoReconnect = !!action.payload
       if (typeof window !== "undefined") {
-        if (state.autoReconnect) localStorage.setItem("mt5AutoReconnect", "1")
-        else localStorage.removeItem("mt5AutoReconnect")
+        if (state.autoReconnect) {
+          localStorage.setItem("mt5AutoReconnect", "1")
+        } else {
+          localStorage.removeItem("mt5AutoReconnect")
+        }
       }
     },
+
     setRemember(state, action) {
       state.remember = !!action.payload
       if (typeof window !== "undefined") {
-        if (state.remember) localStorage.setItem("mt5Remember", "1")
-        else localStorage.removeItem("mt5Remember")
+        if (state.remember) {
+          localStorage.setItem("mt5Remember", "1")
+        } else {
+          localStorage.removeItem("mt5Remember")
+        }
+      }
+    },
+
+    clearError(state) {
+      state.error = null
+    },
+
+    resetMT5State(state) {
+      return {
+        ...initialState,
+        lastLogin: state.lastLogin,
+        lastServer: state.lastServer,
+        remember: state.remember,
+        autoReconnect: state.autoReconnect,
       }
     },
   },
+
   extraReducers: (builder) => {
     builder
-      // CONNECT
+      // ========================================
+      // 🔌 CONNECTION HANDLERS
+      // ========================================
       .addCase(connectMT5.pending, (state) => {
         state.status = "loading"
         state.error = null
@@ -132,6 +165,7 @@ const mt5Slice = createSlice({
         state.lastLogin = action.payload?.login || state.lastLogin
         state.lastServer = action.payload?.server || state.lastServer
         state.account_type = action.payload?.account_type || state.account_type
+
         state.account = {
           login: action.payload?.login,
           server: action.payload?.server,
@@ -148,7 +182,9 @@ const mt5Slice = createSlice({
         state.connected = false
       })
 
-      // AUTOCONNECT
+      // ========================================
+      // 🔄 AUTOCONNECT HANDLERS
+      // ========================================
       .addCase(autoConnectMT5.pending, (state) => {
         state.status = "loading"
         state.error = null
@@ -156,6 +192,7 @@ const mt5Slice = createSlice({
       .addCase(autoConnectMT5.fulfilled, (state, action) => {
         state.status = "succeeded"
         state.connected = !!action.payload?.connected
+
         if (action.payload?.login) state.lastLogin = action.payload.login
         if (action.payload?.server) state.lastServer = action.payload.server
         if (action.payload?.account_type) state.account_type = action.payload.account_type
@@ -165,7 +202,9 @@ const mt5Slice = createSlice({
         state.error = action.payload || "No se pudo autoconectar"
       })
 
-      // ACCOUNT
+      // ========================================
+      // 📊 ACCOUNT HANDLERS
+      // ========================================
       .addCase(fetchMT5Account.pending, (state) => {
         state.status = "loading"
         state.error = null
@@ -173,6 +212,7 @@ const mt5Slice = createSlice({
       .addCase(fetchMT5Account.fulfilled, (state, action) => {
         state.status = "succeeded"
         state.account = action.payload || null
+
         if (action.payload) {
           state.connected = true
           state.lastLogin = action.payload.login || state.lastLogin
@@ -185,9 +225,12 @@ const mt5Slice = createSlice({
         state.error = action.payload || "No se pudo obtener la cuenta"
       })
 
-      // PROFILE
+      // ========================================
+      // 👤 PROFILE HANDLERS
+      // ========================================
       .addCase(loadMT5Profile.fulfilled, (state, action) => {
         state.profile = action.payload?.profile || null
+
         if (state.profile) {
           state.lastLogin = state.profile.login || state.lastLogin
           state.lastServer = state.profile.server || state.lastServer
@@ -203,7 +246,9 @@ const mt5Slice = createSlice({
         state.remember = false
       })
 
-      // DISCONNECT
+      // ========================================
+      // 🔌 DISCONNECT HANDLERS
+      // ========================================
       .addCase(disconnectMT5.pending, (state) => {
         state.status = "loading"
         state.error = null
@@ -220,5 +265,8 @@ const mt5Slice = createSlice({
   },
 })
 
-export const { setAutoReconnect, setRemember } = mt5Slice.actions
+// ========================================
+// 🎯 EXPORTS
+// ========================================
+export const { setAutoReconnect, setRemember, clearError, resetMT5State } = mt5Slice.actions
 export default mt5Slice.reducer

@@ -5,7 +5,7 @@ import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
 import Dashboard from '../pages/Dashboard'
 import News from '../pages/News'
-import Charts from '../pages/Charts.jsx'
+import Charts from '../pages/trading/Charts-main'
 import ProtectedRoute from '../components/ProtectedRoute'
 
 export const router = createBrowserRouter([

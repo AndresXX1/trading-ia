@@ -59,8 +59,6 @@ api.interceptors.response.use(
 )
 
 // ✅ FUNCIONES DE FALLBACK MEJORADAS
-
-
 const generateFallbackData = (symbol, timeframe, count) => {
   console.log(`🔄 Generando datos de fallback para ${symbol}`)
 
@@ -173,207 +171,28 @@ const generateMockSignals = (count = 10) => {
   return signals
 }
 
-// ✅ EXPORTACIÓN PRINCIPAL CON TODAS LAS FUNCIONES
+// ✅ EXPORTACIÓN PRINCIPAL CON TODAS LAS FUNCIONES ORGANIZADAS
 export default {
-  // ✅ AUTENTICACIÓN
-async login(email, password) {
-  try {
-    const response = await api.post("/api/auth/auth/login", { email, password })
-    const data = response.data
-
-    // ✅ Guardar en localStorage
-    localStorage.setItem("authToken", data.access_token)
-    localStorage.setItem("refreshToken", data.refresh_token)
-    localStorage.setItem("userId", data.user_id)
-    localStorage.setItem("username", data.username)
-    localStorage.setItem("email", data.email)
-
-    return data
-  } catch (error) {
-    console.error("❌ Error en login:", error)
-    throw error
-  }
-},
-  async saveAISettings(aiSettings) {
+  // ========================================
+  // 🔐 AUTENTICACIÓN
+  // ========================================
+  async login(email, password) {
     try {
-      console.log("🔄 Guardando configuración de IA específica:", aiSettings)
+      const response = await api.post("/api/auth/auth/login", { email, password })
+      const data = response.data
 
-      const response = await api.post("/api/mt5/ai-settings/save", aiSettings)
+      // ✅ Guardar en localStorage
+      localStorage.setItem("authToken", data.access_token)
+      localStorage.setItem("refreshToken", data.refresh_token)
+      localStorage.setItem("userId", data.user_id)
+      localStorage.setItem("username", data.username)
+      localStorage.setItem("email", data.email)
 
-      return {
-        success: response.data.success,
-        ai_settings: response.data.ai_settings,
-        message: response.data.message,
-        timestamp: response.data.timestamp,
-      }
+      return data
     } catch (error) {
-      console.error("❌ Error guardando configuración de IA:", error)
+      console.error("❌ Error en login:", error)
       throw error
     }
-  },
-
-  /**
-   * Cargar configuración de confluencias de IA
-   * @returns {Promise} Configuración de IA del usuario
-   */
-  async loadAISettings() {
-    try {
-      console.log("🔄 Cargando configuración de IA específica...")
-
-      const response = await api.get("/api/mt5/ai-settings/load")
-
-      return {
-        success: response.data.success,
-        ai_settings: response.data.ai_settings,
-        message: response.data.message,
-        timestamp: response.data.timestamp,
-      }
-    } catch (error) {
-      console.error("❌ Error cargando configuración de IA:", error)
-      throw error
-    }
-  },
-
-  /**
-   * Resetear configuración de IA a valores por defecto
-   * @returns {Promise} Configuración por defecto
-   */
-  async resetAISettings() {
-    try {
-      console.log("🔄 Reseteando configuración de IA...")
-
-      const response = await api.delete("/api/mt5/ai-settings/reset")
-
-      return {
-        success: response.data.success,
-        ai_settings: response.data.ai_settings,
-        message: response.data.message,
-        timestamp: response.data.timestamp,
-      }
-    } catch (error) {
-      console.error("❌ Error reseteando configuración de IA:", error)
-      throw error
-    }
-  },
-
-  /**
-   * Validar configuración de IA antes de guardar
-   * @param {Object} aiSettings - Configuración a validar
-   * @returns {Object} Resultado de validación
-   */
-  validateAISettings(aiSettings) {
-    const errors = []
-
-    // Validar confluence_threshold
-    if (aiSettings.confluence_threshold < 0 || aiSettings.confluence_threshold > 1) {
-      errors.push("El umbral de confluencia debe estar entre 0 y 1")
-    }
-
-    // Validar risk_per_trade
-    if (aiSettings.risk_per_trade <= 0 || aiSettings.risk_per_trade > 10) {
-      errors.push("El riesgo por operación debe estar entre 0.1% y 10%")
-    }
-
-    // Validar lot_size
-    if (aiSettings.lot_size <= 0) {
-      errors.push("El tamaño del lote debe ser mayor a 0")
-    }
-
-    // Validar pesos (deben sumar 1.0)
-    const totalWeight =
-      aiSettings.elliott_wave_weight +
-      aiSettings.fibonacci_weight +
-      aiSettings.chart_patterns_weight +
-      aiSettings.support_resistance_weight
-
-    if (Math.abs(totalWeight - 1.0) > 0.01) {
-      errors.push("Los pesos de análisis deben sumar 1.0 (100%)")
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors: errors,
-    }
-  },
-
-  /**
-   * Obtener configuración por defecto de IA
-   * @returns {Object} Configuración por defecto
-   */
-  getDefaultAISettings() {
-    return {
-      // Configuración básica
-      timeframe: "H1",
-      confluence_threshold: 0.6,
-      risk_per_trade: 2.0,
-      lot_size: 0.1,
-      atr_multiplier_sl: 2.0,
-      risk_reward_ratio: 2.0,
-
-      // Análisis habilitados
-      enable_elliott_wave: true,
-      enable_fibonacci: true,
-      enable_chart_patterns: true,
-      enable_support_resistance: true,
-
-      // Pesos de análisis
-      elliott_wave_weight: 0.25,
-      fibonacci_weight: 0.25,
-      chart_patterns_weight: 0.25,
-      support_resistance_weight: 0.25,
-
-      // Configuración de trader
-      trader_type: null,
-      trader_timeframes: ["H1"],
-      trading_strategy: null,
-      strategy_timeframes: ["H1"],
-      execution_type: "market",
-      allowed_execution_types: ["market"],
-      combined_timeframes: [],
-      custom_weights: {},
-      risk_management_locked: false,
-    }
-  },
-
-  async getRiskLockStatus() {
-    const response = await api.get("/api/auth/auth/risk/status")
-    return response.data
-  },
-
-  async lockRiskConfiguration({
-    total_capital,
-    risk_percentage,
-    source = "mt5",
-    mt5_snapshot = null,
-    extended_risk_config,
-  }) {
-    const response = await api.post("/api/auth/auth/risk/lock", {
-      total_capital,
-      risk_percentage,
-      source,
-      mt5_snapshot,
-      extended_risk_config: extended_risk_config
-        ? {
-            max_daily_loss_percent: extended_risk_config.maxDailyLossPercent,
-            max_weekly_loss_percent: extended_risk_config.maxWeeklyLossPercent,
-            max_daily_profit_percent: extended_risk_config.maxDailyProfitPercent,
-            max_open_trades: extended_risk_config.maxOpenTrades,
-            min_rrr: extended_risk_config.minRRR,
-            max_losing_streak: extended_risk_config.maxLosingStreak,
-            cool_down_hours: extended_risk_config.coolDownHours,
-            risk_by_strategy: extended_risk_config.riskByStrategy
-              ? {
-                  scalping: extended_risk_config.riskByStrategy.scalping?.riskPercent || 0,
-                  day_trading: extended_risk_config.riskByStrategy.day_trading?.riskPercent || 0,
-                  swing_trading: extended_risk_config.riskByStrategy.swing_trading?.riskPercent || 0,
-                  position_trading: extended_risk_config.riskByStrategy.position_trading?.riskPercent || 0,
-                  maleta: extended_risk_config.riskByStrategy.maleta?.riskPercent || 0,
-                }
-              : null,
-          }
-        : null,
-    })
-    return response.data
   },
 
   async register(userData) {
@@ -386,7 +205,95 @@ async login(email, password) {
     }
   },
 
-  // ✅ MT5 DATA
+  // ========================================
+  // 🔌 MT5 CONEXIÓN Y CUENTA
+  // ========================================
+  async connectMT5Account({ login, password, server, account_type, remember = false }) {
+    try {
+      const response = await api.post("/api/mt5/connect", { login, password, server, account_type, remember })
+      return response.data
+    } catch (error) {
+      console.error("❌ Error conectando MT5:", error)
+      throw error
+    }
+  },
+
+  async autoConnectMT5() {
+    try {
+      const response = await api.post("/api/mt5/autoconnect")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error autoconectando MT5:", error)
+      throw error
+    }
+  },
+
+  async disconnectMT5Account() {
+    try {
+      const response = await api.post("/api/mt5/disconnect")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error desconectando MT5:", error)
+      throw error
+    }
+  },
+
+  async getMT5Status() {
+    try {
+      const response = await api.get("/api/mt5/status")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error obteniendo estado MT5:", error)
+      throw error
+    }
+  },
+
+  async getMT5AccountInfo(userId) {
+    try {
+      const response = await api.get(`/api/mt5/account`, { params: { user_id: userId } })
+      return response.data
+    } catch (error) {
+      console.error("❌ Error obteniendo info de cuenta MT5:", error)
+      throw error
+    }
+  },
+
+  // ========================================
+  // 👤 MT5 PERFIL DE USUARIO
+  // ========================================
+  async getMT5Profile(userId) {
+    try {
+      const response = await api.get(`/api/mt5/profile`, { params: { user_id: userId } })
+      return response.data
+    } catch (error) {
+      console.error("❌ Error obteniendo perfil MT5:", error)
+      throw error
+    }
+  },
+
+  async saveMT5Profile({ login, server, account_type }) {
+    try {
+      const response = await api.post("/api/mt5/profile/save", { login, server, account_type })
+      return response.data
+    } catch (error) {
+      console.error("❌ Error guardando perfil MT5:", error)
+      throw error
+    }
+  },
+
+  async deleteMT5Profile() {
+    try {
+      const response = await api.delete("/api/mt5/profile")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error eliminando perfil MT5:", error)
+      throw error
+    }
+  },
+
+  // ========================================
+  // 📊 MT5 DATOS DE MERCADO
+  // ========================================
   async getMT5Data(symbol, timeframe = "H1", count = 100) {
     try {
       console.log(`🔄 Llamando al backend: ${API_BASE_URL}/api/mt5/data`)
@@ -421,7 +328,6 @@ async login(email, password) {
     }
   },
 
-  // ✅ PRECIO ACTUAL ESPECÍFICO
   async getCurrentPrice(symbol) {
     try {
       const response = await api.get(`/api/mt5/price/${symbol}`)
@@ -444,13 +350,132 @@ async login(email, password) {
     }
   },
 
-  // ✅ PARES DISPONIBLES
-  async getAvailablePairs() {
-    const response = await api.get("/api/signals/signals/pairs/")
-    return response.data
+  async getMultiplePairPrices(symbols) {
+    const promises = symbols.map((symbol) => this.getCurrentPrice(symbol))
+    const results = await Promise.allSettled(promises)
+
+    const prices = {}
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") {
+        prices[symbols[index]] = result.value
+      } else {
+        console.error(`Error obteniendo precio para ${symbols[index]}:`, result.reason)
+      }
+    })
+
+    return prices
   },
 
-  // ✅ SEÑALES INICIALES
+  // ========================================
+  // 💼 MT5 TRADING Y ÓRDENES
+  // ========================================
+  async executeOrder(orderData) {
+    try {
+      const response = await api.post("/api/mt5/execute", orderData)
+      return {
+        success: response.data.success || false,
+        ticket: response.data.ticket || response.data.order_id,
+        error: response.data.error,
+      }
+    } catch (error) {
+      console.error("❌ Error ejecutando orden:", error)
+      return {
+        success: false,
+        error: error.message,
+      }
+    }
+  },
+
+  async getUserOrders() {
+    try {
+      const response = await api.get("/api/mt5/orders")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error obteniendo órdenes:", error)
+      return { orders: [] }
+    }
+  },
+
+  async getOpenPositions() {
+    try {
+      const response = await api.get("/api/mt5/positions")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error obteniendo posiciones:", error)
+      return { positions: [] }
+    }
+  },
+
+  // ========================================
+  // 🤖 CONFIGURACIÓN DE IA
+  // ========================================
+  async saveAISettings(aiSettings) {
+    try {
+      console.log("🔄 Guardando configuración de IA específica:", aiSettings)
+
+      const response = await api.post("/api/mt5/ai-settings/save", aiSettings)
+
+      return {
+        success: response.data.success,
+        ai_settings: response.data.ai_settings,
+        message: response.data.message,
+        timestamp: response.data.timestamp,
+      }
+    } catch (error) {
+      console.error("❌ Error guardando configuración de IA:", error)
+      throw error
+    }
+  },
+
+  async loadAISettings() {
+    try {
+      console.log("🔄 Cargando configuración de IA específica...")
+
+      const response = await api.get("/api/mt5/ai-settings/load")
+
+      return {
+        success: response.data.success,
+        ai_settings: response.data.ai_settings,
+        message: response.data.message,
+        timestamp: response.data.timestamp,
+      }
+    } catch (error) {
+      console.error("❌ Error cargando configuración de IA:", error)
+      throw error
+    }
+  },
+
+  async resetAISettings() {
+    try {
+      console.log("🔄 Reseteando configuración de IA...")
+
+      const response = await api.delete("/api/mt5/ai-settings/reset")
+
+      return {
+        success: response.data.success,
+        ai_settings: response.data.ai_settings,
+        message: response.data.message,
+        timestamp: response.data.timestamp,
+      }
+    } catch (error) {
+      console.error("❌ Error reseteando configuración de IA:", error)
+      throw error
+    }
+  },
+
+  // ========================================
+  // 🎯 SEÑALES Y ANÁLISIS
+  // ========================================
+  async getAvailablePairs() {
+    try {
+      const response = await api.get("/api/signals/signals/pairs/")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error obteniendo pares disponibles:", error)
+      throw error
+    }
+  },
+
   async getInitialSignals(limit = 80) {
     try {
       const response = await api.get("/api/signals/signals/", {
@@ -467,7 +492,6 @@ async login(email, password) {
     }
   },
 
-  // ✅ ANÁLISIS CON IA - FUNCIÓN CORREGIDA COMPLETAMENTE
   async analyzePair(pair, timeframe, config = null) {
     try {
       // ✅ Mapeo de estrategias para coincidir exactamente con el backend
@@ -605,43 +629,41 @@ async login(email, password) {
     }
   },
 
-  // ✅ MT5 CONEXIÓN
-  async connectMT5Account({ login, password, server, account_type, remember = false }) {
-    const response = await api.post("/api/mt5/connect", { login, password, server, account_type, remember })
-    return response.data
+  async updateSignalSettings(settings) {
+    try {
+      const response = await api.post("/api/signals/settings/", settings)
+      return response.data
+    } catch (error) {
+      console.error("❌ Error actualizando configuración:", error)
+      throw error
+    }
   },
 
-  async autoConnectMT5() {
-    const response = await api.post("/api/mt5/autoconnect")
-    return response.data
+  async deleteSignal(signalId) {
+    try {
+      const response = await api.delete(`/api/signals/${signalId}`)
+      return response.data
+    } catch (error) {
+      console.error("❌ Error eliminando señal:", error)
+      throw error
+    }
   },
 
-  async disconnectMT5Account() {
-    const response = await api.post("/api/mt5/disconnect")
-    return response.data
+  async getSignals(pair, timeframe, limit = 50) {
+    try {
+      const response = await api.get(`/signals/${pair}/${timeframe}`, {
+        params: { limit },
+      })
+      return response.data
+    } catch (error) {
+      console.error("❌ Error obteniendo señales:", error)
+      return { signals: [] }
+    }
   },
 
-  async getMT5Status() {
-    const response = await api.get("/api/mt5/status")
-    return response.data
-  },
-
-async getMT5Profile(userId) {
-  const response = await api.get(`/api/mt5/profile`, { params: { user_id: userId } })
-  return response.data
-},
-
-  async saveMT5Profile({ login, server, account_type }) {
-    const response = await api.post("/api/mt5/profile/save", { login, server, account_type })
-    return response.data
-  },
-
-  async deleteMT5Profile() {
-    const response = await api.delete("/api/mt5/profile")
-    return response.data
-  },
-
-  // ✅ GENERAR IMAGEN DE GRÁFICO
+  // ========================================
+  // 📈 GRÁFICOS Y VISUALIZACIÓN
+  // ========================================
   async generateChartImage(signalData) {
     try {
       const response = await api.post("/api/charts/generate", signalData)
@@ -657,113 +679,6 @@ async getMT5Profile(userId) {
     }
   },
 
-  // ✅ EJECUTAR ORDEN
-  async executeOrder(orderData) {
-    try {
-      const response = await api.post("/api/mt5/execute", orderData)
-      return {
-        success: response.data.success || false,
-        ticket: response.data.ticket || response.data.order_id,
-        error: response.data.error,
-      }
-    } catch (error) {
-      console.error("❌ Error ejecutando orden:", error)
-      return {
-        success: false,
-        error: error.message,
-      }
-    }
-  },
-
-  // ✅ ÓRDENES DEL USUARIO
-  async getUserOrders() {
-    try {
-      const response = await api.get("/api/mt5/orders")
-      return response.data
-    } catch (error) {
-      console.error("❌ Error obteniendo órdenes:", error)
-      return { orders: [] }
-    }
-  },
-
-  // ✅ POSICIONES ABIERTAS
-  async getOpenPositions() {
-    try {
-      const response = await api.get("/api/mt5/positions")
-      return response.data
-    } catch (error) {
-      console.error("❌ Error obteniendo posiciones:", error)
-      return { positions: [] }
-    }
-  },
-
-  // ✅ ESTADO DEL SISTEMA
-  async getSystemStatus() {
-    try {
-      const response = await api.get("/api/status")
-      return response.data
-    } catch (error) {
-      console.error("❌ Error obteniendo estado del sistema:", error)
-      return { status: "unknown", mt5_connected: false }
-    }
-  },
-
-  // ✅ HEALTH CHECK
-  async getHealthCheck() {
-    try {
-      const response = await api.get("/health")
-      return response.data
-    } catch (error) {
-      console.error("❌ Error en health check:", error)
-      return { status: "error" }
-    }
-  },
-
-  // ✅ TEST MT5 INTEGRATION
-  async testMT5Integration() {
-    try {
-      const response = await api.get("/api/test/mt5")
-      return response.data
-    } catch (error) {
-      console.error("❌ Error en test MT5:", error)
-      return { connected: false, error: error.message }
-    }
-  },
-
-  // ✅ RECONECTAR MT5
-  async reconnectMT5() {
-    try {
-      const response = await api.post("/api/admin/reconnect-mt5")
-      return response.data
-    } catch (error) {
-      console.error("❌ Error reconectando MT5:", error)
-      return { success: false, error: error.message }
-    }
-  },
-
-  // ✅ CONFIGURACIÓN DE SEÑALES
-  async updateSignalSettings(settings) {
-    try {
-      const response = await api.post("/api/signals/settings/", settings)
-      return response.data
-    } catch (error) {
-      console.error("❌ Error actualizando configuración:", error)
-      throw error
-    }
-  },
-
-  // ✅ ELIMINAR SEÑAL
-  async deleteSignal(signalId) {
-    try {
-      const response = await api.delete(`/api/signals/${signalId}`)
-      return response.data
-    } catch (error) {
-      console.error("❌ Error eliminando señal:", error)
-      throw error
-    }
-  },
-
-  // ✅ TEST GENERACIÓN DE GRÁFICOS
   async testChartGeneration() {
     try {
       const response = await api.get("/api/charts/test")
@@ -774,7 +689,115 @@ async getMT5Profile(userId) {
     }
   },
 
-  // ✅ MÉTODOS LEGACY
+  // ========================================
+  // ⚙️ GESTIÓN DE RIESGO
+  // ========================================
+  async getRiskLockStatus() {
+    try {
+      const response = await api.get("/api/auth/auth/risk/status")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error obteniendo estado de riesgo:", error)
+      throw error
+    }
+  },
+
+  async lockRiskConfiguration({
+    total_capital,
+    risk_percentage,
+    source = "mt5",
+    mt5_snapshot = null,
+    extended_risk_config,
+  }) {
+    try {
+      const response = await api.post("/api/auth/auth/risk/lock", {
+        total_capital,
+        risk_percentage,
+        source,
+        mt5_snapshot,
+        extended_risk_config: extended_risk_config
+          ? {
+              max_daily_loss_percent: extended_risk_config.maxDailyLossPercent,
+              max_weekly_loss_percent: extended_risk_config.maxWeeklyLossPercent,
+              max_daily_profit_percent: extended_risk_config.maxDailyProfitPercent,
+              max_open_trades: extended_risk_config.maxOpenTrades,
+              min_rrr: extended_risk_config.minRRR,
+              max_losing_streak: extended_risk_config.maxLosingStreak,
+              cool_down_hours: extended_risk_config.coolDownHours,
+              risk_by_strategy: extended_risk_config.riskByStrategy
+                ? {
+                    scalping: extended_risk_config.riskByStrategy.scalping?.riskPercent || 0,
+                    day_trading: extended_risk_config.riskByStrategy.day_trading?.riskPercent || 0,
+                    swing_trading: extended_risk_config.riskByStrategy.swing_trading?.riskPercent || 0,
+                    position_trading: extended_risk_config.riskByStrategy.position_trading?.riskPercent || 0,
+                    maleta: extended_risk_config.riskByStrategy.maleta?.riskPercent || 0,
+                  }
+                : null,
+            }
+          : null,
+      })
+      return response.data
+    } catch (error) {
+      console.error("❌ Error bloqueando configuración de riesgo:", error)
+      throw error
+    }
+  },
+
+  // ========================================
+  // 🔧 UTILIDADES Y SISTEMA
+  // ========================================
+  async getSystemStatus() {
+    try {
+      const response = await api.get("/api/status")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error obteniendo estado del sistema:", error)
+      return { status: "unknown", mt5_connected: false }
+    }
+  },
+
+  async getHealthCheck() {
+    try {
+      const response = await api.get("/health")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error en health check:", error)
+      return { status: "error" }
+    }
+  },
+
+  async testMT5Integration() {
+    try {
+      const response = await api.get("/api/test/mt5")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error en test MT5:", error)
+      return { connected: false, error: error.message }
+    }
+  },
+
+  async reconnectMT5() {
+    try {
+      const response = await api.post("/api/admin/reconnect-mt5")
+      return response.data
+    } catch (error) {
+      console.error("❌ Error reconectando MT5:", error)
+      return { success: false, error: error.message }
+    }
+  },
+
+  async validateConnection() {
+    try {
+      const response = await api.get("/health", { timeout: 5000 })
+      return { connected: true, status: response.data }
+    } catch (error) {
+      return { connected: false, error: error.message }
+    }
+  },
+
+  // ========================================
+  // 📰 DATOS ADICIONALES
+  // ========================================
   async getRealTimeData() {
     try {
       const response = await api.get("/market-data/realtime")
@@ -795,20 +818,79 @@ async getMT5Profile(userId) {
     }
   },
 
-  // ✅ OBTENER SEÑALES POR PAR Y TIMEFRAME
-  async getSignals(pair, timeframe, limit = 50) {
-    try {
-      const response = await api.get(`/signals/${pair}/${timeframe}`, {
-        params: { limit },
-      })
-      return response.data
-    } catch (error) {
-      console.error("❌ Error obteniendo señales:", error)
-      return { signals: [] }
+  // ========================================
+  // 🛠️ UTILIDADES DE CONFIGURACIÓN
+  // ========================================
+  validateAISettings(aiSettings) {
+    const errors = []
+
+    // Validar confluence_threshold
+    if (aiSettings.confluence_threshold < 0 || aiSettings.confluence_threshold > 1) {
+      errors.push("El umbral de confluencia debe estar entre 0 y 1")
+    }
+
+    // Validar risk_per_trade
+    if (aiSettings.risk_per_trade <= 0 || aiSettings.risk_per_trade > 10) {
+      errors.push("El riesgo por operación debe estar entre 0.1% y 10%")
+    }
+
+    // Validar lot_size
+    if (aiSettings.lot_size <= 0) {
+      errors.push("El tamaño del lote debe ser mayor a 0")
+    }
+
+    // Validar pesos (deben sumar 1.0)
+    const totalWeight =
+      aiSettings.elliott_wave_weight +
+      aiSettings.fibonacci_weight +
+      aiSettings.chart_patterns_weight +
+      aiSettings.support_resistance_weight
+
+    if (Math.abs(totalWeight - 1.0) > 0.01) {
+      errors.push("Los pesos de análisis deben sumar 1.0 (100%)")
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors: errors,
     }
   },
 
-  // ✅ UTILIDADES
+  getDefaultAISettings() {
+    return {
+      // Configuración básica
+      timeframe: "H1",
+      confluence_threshold: 0.6,
+      risk_per_trade: 2.0,
+      lot_size: 0.1,
+      atr_multiplier_sl: 2.0,
+      risk_reward_ratio: 2.0,
+
+      // Análisis habilitados
+      enable_elliott_wave: true,
+      enable_fibonacci: true,
+      enable_chart_patterns: true,
+      enable_support_resistance: true,
+
+      // Pesos de análisis
+      elliott_wave_weight: 0.25,
+      fibonacci_weight: 0.25,
+      chart_patterns_weight: 0.25,
+      support_resistance_weight: 0.25,
+
+      // Configuración de trader
+      trader_type: null,
+      trader_timeframes: ["H1"],
+      trading_strategy: null,
+      strategy_timeframes: ["H1"],
+      execution_type: "market",
+      allowed_execution_types: ["market"],
+      combined_timeframes: [],
+      custom_weights: {},
+      risk_management_locked: false,
+    }
+  },
+
   isTokenExpired(token) {
     try {
       const decoded = jwtDecode(token)
@@ -818,7 +900,6 @@ async getMT5Profile(userId) {
     }
   },
 
-  // ✅ FUNCIÓN AUXILIAR PARA GENERAR SEÑAL MOCK
   generateMockSignal(symbol, timeframe) {
     const basePrice = symbol === "EURUSD" ? 1.085 : symbol === "GBPUSD" ? 1.265 : 148.5
     const signalType = Math.random() > 0.5 ? "buy" : "sell"
@@ -846,39 +927,6 @@ async getMT5Profile(userId) {
           },
         },
       ],
-    }
-  },
-
-  // ✅ FUNCIÓN PARA MÚLTIPLES PARES
-  async getMultiplePairPrices(symbols) {
-    const promises = symbols.map((symbol) => this.getCurrentPrice(symbol))
-    const results = await Promise.allSettled(promises)
-
-    const prices = {}
-    results.forEach((result, index) => {
-      if (result.status === "fulfilled") {
-        prices[symbols[index]] = result.value
-      } else {
-        console.error(`Error obteniendo precio para ${symbols[index]}:`, result.reason)
-      }
-    })
-
-    return prices
-  },
-
-  // ✅ Obtener información de cuenta MT5
-async getMT5AccountInfo(userId) {
-  const response = await api.get(`/api/mt5/account`, { params: { user_id: userId } })
-  return response.data
-},
-
-  // ✅ FUNCIÓN PARA VALIDAR CONEXIÓN
-  async validateConnection() {
-    try {
-      const response = await api.get("/health", { timeout: 5000 })
-      return { connected: true, status: response.data }
-    } catch (error) {
-      return { connected: false, error: error.message }
     }
   },
 }

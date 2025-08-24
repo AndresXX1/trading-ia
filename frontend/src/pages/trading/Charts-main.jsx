@@ -75,7 +75,7 @@ import {
 import { Line } from "react-chartjs-2"
 import annotationPlugin from "chartjs-plugin-annotation"
 import "chartjs-adapter-date-fns"
-import api from "../api/index"
+import api from "../../api/index"
 import "./charts.css"
 import SettingsDialog from "../settings/settings-dialog"
 
