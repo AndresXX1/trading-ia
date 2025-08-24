@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import logging
 import numpy as np
 import pandas as pd
-from database.models import User
+from database.user import User
 from database.connection import get_database
 from mt5.data_provider import MT5DataProvider
 from api.auth import get_current_user

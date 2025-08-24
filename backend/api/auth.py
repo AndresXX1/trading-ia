@@ -8,7 +8,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, Field, EmailStr
 import os
 
-from database import User, UserLogin, UserRegister, UserResponse
+from database.user import User, UserLogin, UserRegister, UserResponse
 from database.connection import db_manager
 
 # Configuración

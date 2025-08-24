@@ -3,7 +3,8 @@ from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 import pandas as pd
 
-from database.models import User, TradingPair, OHLCV
+from database.user import User
+from database.mt5 import  TradingPair, OHLCV
 from mt5.data_provider import MT5DataProvider
 from api.auth import get_current_active_user
 from database.connection import db_manager

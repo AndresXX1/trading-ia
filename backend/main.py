@@ -11,33 +11,27 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-# Importar routers
-# from api.auth import router as auth_router  # File does not exist
-# from api.pairs import router as pairs_router  # File does not exist
-# from api.signals import router as signals_router  # File does not exist
-# from api.charts_endpoints import router as charts_router  # Router de gráficos
-from api.mt5_connection_router import router as mt5_connection_router  # Router de conexión MT5
-from api.ai_settings_router import router as ai_settings_router  # Router de configuración AI
+# Routers
+from api.auth import router as auth_router
+from api.risk_management import router as risk_router 
+from api.ai_settings_router import router as ai_settings_router
 
-# Importar componentes
+# Componentes
 from database.connection import connect_to_mongo, close_mongo_connection
 from mt5.data_provider import MT5DataProvider
 
-# Configurar logging
+# Logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('trading_ai.log'),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.FileHandler('trading_ai.log'), logging.StreamHandler()]
 )
 logger = logging.getLogger(__name__)
 
-# Variables globales
+# Globales
 mt5_provider = None
 
-# Clase para manejar la serialización personalizada - MEJORADA
+# Serialización helper
 class CustomJSONEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, ObjectId):
@@ -54,15 +48,11 @@ class CustomJSONEncoder(json.JSONEncoder):
             return self.default(obj.__dict__)
         return super().default(obj)
 
-# Función auxiliar para preparar datos para JSON - MEJORADA
 def prepare_for_json_serialization(data):
-    """
-    Convierte recursivamente todos los tipos no serializables a JSON
-    """
+    """Convierte recursivamente todos los tipos no serializables a JSON."""
     if isinstance(data, dict):
         result = {}
         for key, value in data.items():
-            # Convertir _id a id para mejor manejo en frontend
             if key == "_id" and isinstance(value, ObjectId):
                 result["id"] = str(value)
             else:
@@ -89,29 +79,25 @@ def prepare_for_json_serialization(data):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Maneja el ciclo de vida de la aplicación"""
-    # Startup
+    """Ciclo de vida de la aplicación."""
     logger.info("Iniciando aplicación Trading AI...")
-    
     try:
-        # Conectar a MongoDB
+        # Mongo
         await connect_to_mongo()
         logger.info("✅ Conexión a MongoDB establecida")
-        
-        # Inicializar MT5
+
+        # MT5
         global mt5_provider
         mt5_provider = MT5DataProvider()
         if mt5_provider.connect():
             logger.info("✅ Conexión a MetaTrader 5 establecida")
         else:
             logger.warning("⚠️ No se pudo conectar a MetaTrader 5")
-            
     except Exception as e:
         logger.error(f"❌ Error durante el inicio: {e}")
-        
+
     yield
-    
-    # Shutdown
+
     logger.info("Cerrando aplicación Trading AI...")
     try:
         await close_mongo_connection()
@@ -121,7 +107,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Error durante el cierre: {e}")
 
-# Crear aplicación FastAPI
+# App
 app = FastAPI(
     title="Trading AI API",
     description="Sistema de Trading con Inteligencia Artificial",
@@ -129,16 +115,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# 🚀 CONFIGURACIÓN CORS MEJORADA - SOLUCIONADO
+# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://127.0.0.1:3000", 
-        "http://127.0.0.1:5173",
-        "http://localhost:8080",
-        "http://127.0.0.1:8080"
+        "http://localhost:3000", "http://localhost:5173",
+        "http://127.0.0.1:3000", "http://127.0.0.1:5173",
+        "http://localhost:8080", "http://127.0.0.1:8080"
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -147,32 +130,22 @@ app.add_middleware(
     max_age=3600,
 )
 
-# 🔧 MIDDLEWARE PARA MANEJAR ERRORES CON CORS
+# Middleware CORS en errores
 @app.middleware("http")
 async def cors_error_handler(request: Request, call_next):
-    """
-    Middleware que asegura que TODOS los errores incluyan headers CORS
-    """
     try:
         response = await call_next(request)
-        
-        # Agregar headers CORS a TODAS las respuestas
         cors_headers = {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "*",
             "Access-Control-Allow-Credentials": "true",
         }
-        
-        for key, value in cors_headers.items():
-            response.headers[key] = value
-            
+        for k, v in cors_headers.items():
+            response.headers[k] = v
         return response
-        
     except Exception as e:
         logger.error(f"Error en middleware CORS: {e}", exc_info=True)
-        
-        # Devolver error con headers CORS
         return JSONResponse(
             status_code=500,
             content={
@@ -180,7 +153,7 @@ async def cors_error_handler(request: Request, call_next):
                 "detail": str(e),
                 "timestamp": datetime.utcnow().isoformat()
             },
-            headers={ 
+            headers={
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "*",
@@ -188,53 +161,40 @@ async def cors_error_handler(request: Request, call_next):
             }
         )
 
-# MIDDLEWARE para manejar ObjectId serialization 
+# Middleware para limpiar ObjectId
 @app.middleware("http")
 async def objectid_serialization_middleware(request: Request, call_next):
-    """
-    Middleware que intercepta todas las respuestas y convierte ObjectIds a strings
-    """
     try:
         response = await call_next(request)
-        
-        # Solo procesar respuestas con contenido JSON
         content_type = response.headers.get("content-type", "")
         if "application/json" not in content_type:
             return response
-            
-        # Interceptar el contenido de la respuesta
+
         if hasattr(response, 'body'):
             try:
-                # Leer el body de la respuesta
                 body = b""
                 async for chunk in response.body_iterator:
                     body += chunk
-                
-                # Decodificar JSON
+
                 if body:
                     try:
                         data = json.loads(body.decode())
-                        # Procesar los datos para eliminar ObjectIds
-                        cleaned_data = prepare_for_json_serialization(data)
-                        
-                        # Crear nueva respuesta con datos limpios
+                        cleaned = prepare_for_json_serialization(data)
                         return JSONResponse(
-                            content=cleaned_data,
+                            content=cleaned,
                             status_code=response.status_code,
                             headers=dict(response.headers)
                         )
                     except (json.JSONDecodeError, UnicodeDecodeError) as e:
                         logger.warning(f"Error decodificando respuesta JSON: {e}")
                         return response
-                        
             except Exception as e:
                 logger.warning(f"Error procesando respuesta en middleware: {e}")
                 return response
-                
+
         return response
-        
+
     except ValueError as e:
-        # Capturar errores específicos de ObjectId
         if "ObjectId" in str(e):
             logger.error(f"Error de serialización ObjectId interceptado: {e}")
             return JSONResponse(
@@ -244,14 +204,13 @@ async def objectid_serialization_middleware(request: Request, call_next):
                     "detail": "Data contains non-serializable ObjectId. Please contact support.",
                     "message": "Error interno de serialización"
                 },
-                headers={ 
+                headers={
                     "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", 
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                     "Access-Control-Allow-Headers": "*",
                 }
             )
         raise
-        
     except Exception as e:
         logger.error(f"Error inesperado en middleware: {e}")
         return JSONResponse(
@@ -261,20 +220,19 @@ async def objectid_serialization_middleware(request: Request, call_next):
                 "detail": "An unexpected error occurred",
                 "message": "Error interno del servidor"
             },
-            headers={ 
+            headers={
                 "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", 
+                "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "*",
             }
         )
 
-# 🎯 HANDLER PARA OPTIONS (PREFLIGHT)
+# OPTIONS (preflight)
 @app.options("/{full_path:path}")
 async def options_handler(full_path: str):
-    """Maneja todas las requests OPTIONS (CORS preflight)"""
     return JSONResponse(
         content={"message": "OK"},
-        headers={ 
+        headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
             "Access-Control-Allow-Headers": "*",
@@ -283,45 +241,39 @@ async def options_handler(full_path: str):
         }
     )
 
-# Incluir routers originales
-# app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
-# app.include_router(pairs_router, prefix="/api/pairs", tags=["pairs"])
-# app.include_router(signals_router, prefix="/api/signals", tags=["signals"])
+# ◀── Routers ──▶
 
-# Incluir nuevos routers
-# app.include_router(charts_router, prefix="/api/charts", tags=["charts", "visualization"])
-app.include_router(mt5_connection_router, prefix="/api/mt5", tags=["metatrader5", "trading"])
+app.include_router(auth_router, prefix="/api", tags=["authentication"])
+app.include_router(risk_router, prefix="/api", tags=["risk-management"])
 app.include_router(ai_settings_router, prefix="/api/ai", tags=["artificial-intelligence", "settings"])
 
-# Servir archivos estáticos del frontend
+# Estáticos
 try:
     app.mount("/static", StaticFiles(directory="../../frontend/static"), name="static")
 except Exception as e:
     logger.warning(f"No se pudo montar directorio estático: {e}")
 
+# Root
 @app.get("/")
 async def root():
-    """Endpoint principal"""
     return {
         "message": "Trading AI API v1.0.0",
         "status": "online",
         "mt5_connected": mt5_provider.connected if mt5_provider else False,
         "available_endpoints": {
-            # "authentication": "/api/auth",
-            # "pairs": "/api/pairs", 
-            # "signals": "/api/signals",
-            # "charts": "/api/charts",
+            "authentication": "/api/auth",
+            "risk_management": "/api/risk",
             "mt5_connection": "/api/mt5",
             "ai_settings": "/api/ai"
         },
         "timestamp": datetime.utcnow().isoformat()
     }
 
+
 @app.get("/health")
 async def health_check():
-    """Verificación de salud del sistema"""
+    """Verificación de salud del sistema."""
     try:
-        # Verificar conexión a MongoDB
         from database.connection import get_database
         db = await get_database()
         await db.command("ping")
@@ -329,10 +281,9 @@ async def health_check():
     except Exception as e:
         mongo_status = f"error: {str(e)}"
         logger.error(f"MongoDB health check failed: {e}")
-    
-    # Verificar conexión a MT5
+
     mt5_status = "connected" if (mt5_provider and mt5_provider.connected) else "disconnected"
-    
+
     return {
         "status": "healthy",
         "services": {
@@ -340,29 +291,27 @@ async def health_check():
             "metatrader5": mt5_status
         },
         "endpoints": {
-            "total": 2,
-            "active": ["mt5", "ai"]
+            "total": 4,
+            "active": ["auth", "risk", "mt5", "ai"]
         },
         "timestamp": datetime.utcnow().isoformat()
     }
 
-# 🚨 MANEJO DE ERRORES GLOBAL CORREGIDO
+
+@app.get("/healt")
+async def health_check_alias():
+    return await health_check()
+
+# Manejo de errores global
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Maneja errores globales con CORS headers incluidos"""
-    
-    # Log detallado del error
     logger.error(f"Global exception on {request.method} {request.url}: {exc}", exc_info=True)
-    
-    # Headers CORS para TODOS los errores
     cors_headers = {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
         "Access-Control-Allow-Headers": "*",
         "Access-Control-Allow-Credentials": "true",
     }
-    
-    # Manejo específico para errores de ObjectId
     if "ObjectId" in str(exc):
         return JSONResponse(
             status_code=500,
@@ -375,8 +324,6 @@ async def global_exception_handler(request: Request, exc: Exception):
             },
             headers=cors_headers
         )
-    
-    # Error general
     return JSONResponse(
         status_code=500,
         content={
@@ -389,24 +336,23 @@ async def global_exception_handler(request: Request, exc: Exception):
         headers=cors_headers
     )
 
-# 🧪 ENDPOINT DE TESTING CORS
+# Test CORS
 @app.get("/api/test-cors")
 async def test_cors():
-    """Endpoint para probar CORS"""
     return JSONResponse(
         content={
             "message": "CORS test successful",
             "timestamp": datetime.utcnow().isoformat(),
             "headers_sent": "CORS headers included"
         },
-        headers={ 
+        headers={
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "*",
         }
     )
 
-# Configuración para desarrollo
+# Dev
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",

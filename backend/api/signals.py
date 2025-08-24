@@ -8,12 +8,14 @@ import logging
 import numpy as np
 from datetime import datetime
 import pandas as pd
-from database.models import User, Signal, AnalysisConfig
+from database.user import User
+from database.enums import Signal
+from database.ai_settings import User, AnalysisConfig
 from database.connection import get_database
 from mt5.data_provider import MT5DataProvider
 from ai.confluence_detector import ConfluenceDetector
 from api.auth import get_current_user
-from database.models import SignalType
+from database.enums import SignalType
 from bson import ObjectId
 from fastapi import Body
 
