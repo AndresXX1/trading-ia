@@ -77,7 +77,7 @@ import annotationPlugin from "chartjs-plugin-annotation"
 import "chartjs-adapter-date-fns"
 import api from "../api/index"
 import "./charts.css"
-import SettingsDialog from "./settings-dialog"
+import SettingsDialog from "../settings/settings-dialog"
 
 // Registrar componentes de Chart.js incluyendo anotaciones
 ChartJS.register(
