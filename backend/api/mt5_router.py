@@ -9,7 +9,9 @@ import numpy as np
 import pandas as pd
 from bson import ObjectId
 import asyncio
-from database.models import AISettingsRequest, AISettings, AISettingsResponse, AISettingsValidation
+
+from database.ai_settings import AISettingsRequest, AISettings, AISettingsResponse, AISettingsValidation
+
 # Intentar usar el paquete oficial de MetaTrader5 si está instalado
 try:
     import MetaTrader5 as mt5  # type: ignore
@@ -17,7 +19,9 @@ except Exception:
     mt5 = None  # noqa: N816
 
 # Modelos y dependencias del proyecto
-from database.models import User, MT5Session, PyObjectId, MT5Profile
+from database.user import User
+from database.mt5 import MT5Session, MT5Profile
+from database.base import PyObjectId
 from database.connection import get_database
 from api.auth import get_current_user
 

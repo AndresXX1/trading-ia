@@ -12,12 +12,12 @@ import numpy as np
 import pandas as pd
 
 # Importar routers
-from api.auth import router as auth_router
-from api.pairs import router as pairs_router
-from api.signals import router as signals_router
-# Nuevos routers importados
-from api.charts_endpoints import router as charts_router  # Router de gráficos
-from api.mt5_endpoints import router as mt5_router  # Router de integración MT5
+# from api.auth import router as auth_router  # File does not exist
+# from api.pairs import router as pairs_router  # File does not exist
+# from api.signals import router as signals_router  # File does not exist
+# from api.charts_endpoints import router as charts_router  # Router de gráficos
+from api.mt5_connection_router import router as mt5_connection_router  # Router de conexión MT5
+from api.ai_settings_router import router as ai_settings_router  # Router de configuración AI
 
 # Importar componentes
 from database.connection import connect_to_mongo, close_mongo_connection
@@ -180,7 +180,7 @@ async def cors_error_handler(request: Request, call_next):
                 "detail": str(e),
                 "timestamp": datetime.utcnow().isoformat()
             },
-            headers={
+            headers={ 
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
                 "Access-Control-Allow-Headers": "*",
@@ -244,9 +244,9 @@ async def objectid_serialization_middleware(request: Request, call_next):
                     "detail": "Data contains non-serializable ObjectId. Please contact support.",
                     "message": "Error interno de serialización"
                 },
-                headers={
+                headers={ 
                     "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+                    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", 
                     "Access-Control-Allow-Headers": "*",
                 }
             )
@@ -261,7 +261,7 @@ async def objectid_serialization_middleware(request: Request, call_next):
                 "detail": "An unexpected error occurred",
                 "message": "Error interno del servidor"
             },
-            headers={
+            headers={ 
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS", 
                 "Access-Control-Allow-Headers": "*",
@@ -274,7 +274,7 @@ async def options_handler(full_path: str):
     """Maneja todas las requests OPTIONS (CORS preflight)"""
     return JSONResponse(
         content={"message": "OK"},
-        headers={
+        headers={ 
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
             "Access-Control-Allow-Headers": "*",
@@ -284,13 +284,14 @@ async def options_handler(full_path: str):
     )
 
 # Incluir routers originales
-app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
-app.include_router(pairs_router, prefix="/api/pairs", tags=["pairs"])
-app.include_router(signals_router, prefix="/api/signals", tags=["signals"])
+# app.include_router(auth_router, prefix="/api/auth", tags=["authentication"])
+# app.include_router(pairs_router, prefix="/api/pairs", tags=["pairs"])
+# app.include_router(signals_router, prefix="/api/signals", tags=["signals"])
 
 # Incluir nuevos routers
-app.include_router(charts_router, prefix="/api/charts", tags=["charts", "visualization"])
-app.include_router(mt5_router, prefix="/api/mt5", tags=["metatrader5", "trading"])
+# app.include_router(charts_router, prefix="/api/charts", tags=["charts", "visualization"])
+app.include_router(mt5_connection_router, prefix="/api/mt5", tags=["metatrader5", "trading"])
+app.include_router(ai_settings_router, prefix="/api/ai", tags=["artificial-intelligence", "settings"])
 
 # Servir archivos estáticos del frontend
 try:
@@ -306,11 +307,12 @@ async def root():
         "status": "online",
         "mt5_connected": mt5_provider.connected if mt5_provider else False,
         "available_endpoints": {
-            "authentication": "/api/auth",
-            "pairs": "/api/pairs", 
-            "signals": "/api/signals",
-            "charts": "/api/charts",
-            "mt5_integration": "/api/mt5"
+            # "authentication": "/api/auth",
+            # "pairs": "/api/pairs", 
+            # "signals": "/api/signals",
+            # "charts": "/api/charts",
+            "mt5_connection": "/api/mt5",
+            "ai_settings": "/api/ai"
         },
         "timestamp": datetime.utcnow().isoformat()
     }
@@ -338,8 +340,8 @@ async def health_check():
             "metatrader5": mt5_status
         },
         "endpoints": {
-            "total": 4,
-            "active": ["auth", "pairs", "signals", "charts", "mt5"]
+            "total": 2,
+            "active": ["mt5", "ai"]
         },
         "timestamp": datetime.utcnow().isoformat()
     }
@@ -397,7 +399,7 @@ async def test_cors():
             "timestamp": datetime.utcnow().isoformat(),
             "headers_sent": "CORS headers included"
         },
-        headers={
+        headers={ 
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
             "Access-Control-Allow-Headers": "*",
